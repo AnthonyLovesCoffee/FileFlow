@@ -10,6 +10,7 @@ type Query {
     getAllMetadata: [FileMetadata!]!
     getMetadataById(id: Int!): FileMetadata
     searchMetadata(fileName: String!): [FileMetadata!]!
+    getFilesByOwner(owner: String!): [FileMetadata!]!
 }
 
 type Mutation {

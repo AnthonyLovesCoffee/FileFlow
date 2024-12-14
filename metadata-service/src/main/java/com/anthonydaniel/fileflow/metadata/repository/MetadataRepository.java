@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface MetadataRepository extends JpaRepository<FileMetadata, Long> {
     List<FileMetadata> findByFileNameContaining(String fileName);
+    List<FileMetadata> findByOwner(String owner);
 }

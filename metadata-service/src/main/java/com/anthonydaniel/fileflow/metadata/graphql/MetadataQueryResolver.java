@@ -30,4 +30,9 @@ public class MetadataQueryResolver {
     public List<FileMetadata> searchMetadata(@Argument String fileName) {
         return metadataService.searchMetadata(fileName);
     }
+
+    @QueryMapping
+    public List<FileMetadata> getFilesByOwner(@Argument String owner) {
+        return metadataService.getFilesByOwner(owner);
+    }
 }

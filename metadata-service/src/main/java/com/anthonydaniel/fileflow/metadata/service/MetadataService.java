@@ -52,5 +52,9 @@ public class MetadataService {
         }
         return false;
     }
+
+    public List<FileMetadata> getFilesByOwner(String owner) {
+        return repository.findByOwner(owner);
+    }
 }
 
