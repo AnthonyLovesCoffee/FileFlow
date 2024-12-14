@@ -11,7 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/files")
+@RequestMapping("/files")
+@CrossOrigin(origins = "http://localhost:63342") // temp fix
 public class FileController {
 
     private final FileService fileService;
