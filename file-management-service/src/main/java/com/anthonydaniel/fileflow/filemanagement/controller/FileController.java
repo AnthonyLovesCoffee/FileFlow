@@ -1,6 +1,6 @@
-package com.anthonydaniel.fileflow.controller;
+package com.anthonydaniel.fileflow.filemanagement.controller;
 
-import com.anthonydaniel.fileflow.service.FileService;
+import com.anthonydaniel.fileflow.filemanagement.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -49,10 +49,10 @@ public class FileController {
                 .body(file);
     }
 
-    // delete a file
-    @DeleteMapping("/{fileName}")
-    public ResponseEntity<String> deleteFile(@PathVariable String fileName) {
-        fileService.deleteFile(fileName);
-        return ResponseEntity.ok("File deleted successfully");
-    }
+//    // delete a file
+//    @DeleteMapping("/{fileName}")
+//    public ResponseEntity<String> deleteFile(@PathVariable String fileName) {
+//        fileService.deleteFile(fileName);
+//        return ResponseEntity.ok("File deleted successfully");
+//    }
 }

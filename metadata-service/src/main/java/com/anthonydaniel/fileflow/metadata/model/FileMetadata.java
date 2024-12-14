@@ -1,20 +1,23 @@
-package com.anthonydaniel.fileflow.model;
+package com.anthonydaniel.fileflow.metadata.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import lombok.Data;
 
+@Data
 @Entity
+@Table(name = "file_metadata")
 public class FileMetadata {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(nullable = false)
     private String fileName;
 
     @Column(nullable = false)
-    private Long fileSize;
+    private Integer fileSize;
 
     @Column(nullable = false)
     private LocalDateTime uploadDate = LocalDateTime.now();
@@ -22,11 +25,11 @@ public class FileMetadata {
     @Column(nullable = true)
     private String owner;
 
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -38,11 +41,11 @@ public class FileMetadata {
         this.fileName = fileName;
     }
 
-    public Long getFileSize() {
+    public Integer getFileSize() {
         return fileSize;
     }
 
-    public void setFileSize(Long fileSize) {
+    public void setFileSize(Integer fileSize) {
         this.fileSize = fileSize;
     }
 

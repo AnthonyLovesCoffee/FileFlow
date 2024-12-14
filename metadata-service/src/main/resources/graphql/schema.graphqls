@@ -1,0 +1,18 @@
+type FileMetadata {
+    id: Int!
+    fileName: String!
+    fileSize: Int!
+    owner: String
+    uploadDate: String!
+}
+
+type Query {
+    getAllMetadata: [FileMetadata!]!
+    getMetadataById(id: Int!): FileMetadata
+    searchMetadata(fileName: String!): [FileMetadata!]!
+}
+
+type Mutation {
+    saveMetadata(fileName: String!, fileSize: Int!, owner: String): FileMetadata
+    deleteMetadata(id: Int!): Boolean
+}
