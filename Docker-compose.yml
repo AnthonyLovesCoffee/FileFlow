@@ -1,0 +1,140 @@
+services:
+  metadata-postgres:
+    image: postgres:latest
+    environment:
+        - POSTGRES_DB=metadata_service
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - metadata-postgres-data:/var/lib/postgresql/data
+    networks:
+      - fileflow-network
+
+  metadata-service:
+    build:
+      context: ./metadata-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://metadata-postgres:5432/metadata_service
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+    networks:
+      - fileflow-network
+
+  file-management-service1:
+    build:
+      context: ./file-management-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      METADATA_SERVICE_URL: http://metadata-service:8082
+    depends_on:
+      - minio
+    networks:
+      - fileflow-network
+
+  file-management-service2:
+    build:
+      context: ./file-management-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      METADATA_SERVICE_URL: http://metadata-service:8082
+    depends_on:
+      - minio
+    networks:
+      - fileflow-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    networks:
+      - fileflow-network
+
+  minio:
+    image: minio/minio
+    hostname: minio1
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server --console-address ":9001" http://minio{1...2}/data{1...2}
+    volumes:
+      - minio_data1:/data1
+      - minio_data2:/data2
+    networks:
+      - fileflow-network
+
+  minio2:
+    image: minio/minio
+    hostname: minio2
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server --console-address ":9001" http://minio{1...2}/data{1...2}
+    volumes:
+      - minio_data3:/data1
+      - minio_data4:/data2
+    networks:
+      - fileflow-network
+
+
+  eureka-server:
+    build: ./eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - fileflow-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - fileflow-network
+
+
+volumes:
+  metadata-postgres-data:
+  minio_data1:
+  minio_data2:
+  minio_data3:
+  minio_data4:
+
+networks:
+  fileflow-network:
+    driver: bridge

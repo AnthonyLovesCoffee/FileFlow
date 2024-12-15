@@ -24,6 +24,8 @@
 	<modules>
 		<module>file-management-service</module>
 		<module>metadata-service</module>
+		<module>eureka-server</module>
+		<module>api-gateway</module>
 	</modules>
 	<scm>
 		<connection/>

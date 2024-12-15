@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
 public class MetadataRepositoryTest {
@@ -25,7 +26,13 @@ public class MetadataRepositoryTest {
         metadata.setUploadDate(LocalDateTime.now());
 
         FileMetadata savedMetadata = repository.save(metadata);
+
         assertNotNull(savedMetadata.getId());
+        assertEquals("example.txt", savedMetadata.getFileName());
+        assertEquals(1024, savedMetadata.getFileSize());
+        assertEquals("user_1", savedMetadata.getOwner());
+        assertNotNull(savedMetadata.getUploadDate());
+
     }
 }
 

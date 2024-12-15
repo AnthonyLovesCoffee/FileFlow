@@ -12,7 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/files")
-@CrossOrigin(origins = "http://localhost:63342") // temp fix
+//@CrossOrigin(origins = "http://localhost:63342") // temp fix
 public class FileController {
 
     private final FileService fileService;

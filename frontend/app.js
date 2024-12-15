@@ -1,49 +1,80 @@
 // Base URLs for APIs
-const REST_API_BASE = "http://localhost:8081/files"; // REST API
+const REST_API_BASE = "http://localhost:8087/files"; // REST API
 const GRAPHQL_API_URL = "http://localhost:8082/graphql"; // GraphQL API
 
-// Handle file upload
-document.getElementById("upload-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
+// DOM elements
+const uploadForm = document.getElementById("upload-form");
+const fileInput = document.getElementById("file");
+const userInput = document.getElementById("userId");
+const uploadResponse = document.getElementById("upload-response");
+const queryButton = document.getElementById("query-button");
+const ownerInput = document.getElementById("owner");
+const metadataResult = document.getElementById("metadata-result");
 
-    const fileInput = document.getElementById("file");
-    const userInput = document.getElementById("userId")
+// file upload
+uploadForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
     const file = fileInput.files[0];
     const userId = userInput.value.trim();
 
     if (!file || !userId) {
-        document.getElementById("upload-response").innerText = "Please provide a valid file and user ID.";
+        uploadResponse.innerText = "Please provide a valid file and user ID.";
         return;
     }
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("userId", userId)
+    formData.append("userId", userId);
 
     try {
         const response = await fetch(`${REST_API_BASE}/upload`, {
             method: "POST",
             body: formData,
         });
-        const result = await response.json();
-        document.getElementById("upload-response").innerText = result.message || "File uploaded successfully!";
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            const result = await response.json();
+            uploadResponse.innerText = result.message || "File uploaded successfully!";
+        } else {
+            const textResponse = await response.text();
+            uploadResponse.innerText = textResponse || "File uploaded successfully!";
+        }
     } catch (error) {
-        document.getElementById("upload-response").innerText = "Error uploading file!";
-        console.error(error);
+        uploadResponse.innerText = `Error uploading file: ${error.message}`;
+        console.error("Upload error:", error);
     }
 });
 
 // metadata querying
-document.getElementById("query-button").addEventListener("click", async () => {
-    const owner = document.getElementById("owner").value.trim();
+queryButton.addEventListener("click", async () => {
+    const owner = ownerInput.value.trim();
+
     if (!owner) {
-        alert("Please enter an owner name.");
+        metadataResult.innerText = "Please enter an owner name.";
         return;
     }
 
     const query = {
-        query: `query { getFilesByOwner(owner: "${owner}") { id fileName fileSize owner uploadDate } }`
+        query: `
+            query GetFilesByOwner($owner: String!) {
+                getFilesByOwner(owner: $owner) {
+                    id
+                    fileName
+                    fileSize
+                    owner
+                    uploadDate
+                }
+            }
+        `,
+        variables: {
+            owner: owner
+        }
     };
 
     try {
@@ -54,37 +85,62 @@ document.getElementById("query-button").addEventListener("click", async () => {
             },
             body: JSON.stringify(query),
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const result = await response.json();
+
+        if (result.errors) {
+            throw new Error(result.errors[0].message);
+        }
+
         displayMetadata(result.data.getFilesByOwner || []);
     } catch (error) {
-        document.getElementById("metadata-result").innerText = "Error fetching metadata!";
-        console.error(error);
+        metadataResult.innerText = `Error fetching metadata: ${error.message}`;
+        console.error("Query error:", error);
     }
 });
 
 // metadata results
 function displayMetadata(metadataList) {
-    const resultDiv = document.getElementById("metadata-result");
-    resultDiv.innerHTML = ""; // Clear previous results
+    metadataResult.innerHTML = "";
 
     if (metadataList.length === 0) {
-        resultDiv.innerText = "No metadata found for this owner.";
+        metadataResult.innerText = "No metadata found for this owner.";
         return;
     }
 
+    const container = document.createElement("div");
+    container.className = "metadata-grid";
+
     metadataList.forEach((metadata) => {
         const div = document.createElement("div");
+        div.className = "metadata-item";
         div.innerHTML = `
             <p><strong>ID:</strong> ${metadata.id}</p>
             <p><strong>File Name:</strong> ${metadata.fileName}</p>
-            <p><strong>File Size:</strong> ${metadata.fileSize} bytes</p>
+            <p><strong>File Size:</strong> ${formatFileSize(metadata.fileSize)}</p>
             <p><strong>Owner:</strong> ${metadata.owner}</p>
-            <p><strong>Upload Date:</strong> ${metadata.uploadDate}</p>
+            <p><strong>Upload Date:</strong> ${formatDate(metadata.uploadDate)}</p>
         `;
-        div.style.marginBottom = "10px";
-        div.style.padding = "10px";
-        div.style.border = "1px solid #ccc";
-        div.style.borderRadius = "5px";
-        resultDiv.appendChild(div);
+        container.appendChild(div);
     });
+
+    metadataResult.appendChild(container);
+}
+
+// format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// format date
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleString();
 }

@@ -1,13 +1,12 @@
 package com.anthonydaniel.fileflow;
 
-import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.Test;
+import com.anthonydaniel.fileflow.filemanagement.FileManagementServiceApplication;
 
-@SpringBootTest
+@SpringBootTest(classes = FileManagementServiceApplication.class)
 class FileManagementServiceApplicationTests {
-
 	@Test
 	void contextLoads() {
 	}
-
 }
