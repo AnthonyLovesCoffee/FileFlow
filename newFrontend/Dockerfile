@@ -2,9 +2,9 @@
 FROM node:20 AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --platform=linux --arch=x64
+RUN npm install --platform=linux --arch=arm64
 COPY . .
-RUN npm i -g @rollup/rollup-linux-x64-gnu
+RUN npm i -g @rollup/rollup-linux-arm64-gnu
 RUN npm run build
 
 # Production stage
