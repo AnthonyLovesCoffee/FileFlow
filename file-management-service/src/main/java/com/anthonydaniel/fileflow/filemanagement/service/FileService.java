@@ -1,17 +1,21 @@
 package com.anthonydaniel.fileflow.filemanagement.service;
 
 import java.io.InputStream;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import io.minio.messages.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.client.RestTemplate;
@@ -32,7 +36,6 @@ public class FileService {
 
     private final MinioClient minioClient;
     private final RestTemplate metadataRestTemplate;
-
     private final String bucketName = "fileflow";
     @Value("${metadata.service.url}")
     private final String metadataServiceUrl;
@@ -71,8 +74,6 @@ public class FileService {
             throw new RuntimeException("Error initializing MinIO bucket: " + e.getMessage(), e);
         }
     }
-
-    //private final String uploadDir = "uploads/";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -127,10 +128,7 @@ public class FileService {
         } catch (Exception e) {
             throw new RuntimeException("Error downloading file from MinIO: " + e.getMessage(), e);
         }
-
-
     }
-
 
 
 //    public void deleteFile(String fileName) {

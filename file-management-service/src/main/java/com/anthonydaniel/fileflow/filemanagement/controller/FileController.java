@@ -2,13 +2,18 @@ package com.anthonydaniel.fileflow.filemanagement.controller;
 
 import com.anthonydaniel.fileflow.filemanagement.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/files")
@@ -16,6 +21,8 @@ import java.util.List;
 public class FileController {
 
     private final FileService fileService;
+
+
 
     @Autowired
     public FileController(FileService fileService) {

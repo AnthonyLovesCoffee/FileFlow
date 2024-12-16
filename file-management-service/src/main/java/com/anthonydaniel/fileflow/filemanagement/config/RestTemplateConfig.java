@@ -6,7 +6,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class RestTemplateConfig {
-
+    // needed to add this - otherwise File Service would try to use Eureka to find minIO
     @Bean(name = "metadataRestTemplate")
     public RestTemplate metadataRestTemplate() {
         return new RestTemplate();

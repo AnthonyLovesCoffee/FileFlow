@@ -1,5 +1,5 @@
 // Base URLs for APIs
-const REST_API_BASE = "http://localhost:8087/files"; // REST API
+const REST_API_BASE = "http://localhost:8087/files"; // REST API - api gateway
 const GRAPHQL_API_URL = "http://localhost:8082/graphql"; // GraphQL API
 
 // DOM elements

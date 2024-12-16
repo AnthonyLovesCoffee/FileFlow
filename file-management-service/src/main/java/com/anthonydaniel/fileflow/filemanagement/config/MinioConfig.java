@@ -31,7 +31,7 @@ public class MinioConfig {
                     .credentials(accessKey, secretKey)
                     .build();
 
-            // Test connection
+            // test connection
             client.listBuckets();
             logger.info("Successfully connected to MinIO");
 

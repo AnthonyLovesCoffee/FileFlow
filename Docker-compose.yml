@@ -21,8 +21,7 @@ services:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://metadata-postgres:5432/metadata_service
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-
+      - CORS_ALLOWED_ORIGIN=http://localhost:3001
     networks:
       - fileflow-network
 
@@ -66,6 +65,13 @@ services:
     build: ./frontend
     ports:
       - "3000:80"
+    networks:
+      - fileflow-network
+
+  newfrontend:
+    build: ./newFrontend
+    ports:
+      - "3001:3001"
     networks:
       - fileflow-network
 
@@ -122,6 +128,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - CORS_ALLOWED_ORIGIN=http://localhost:3001
     depends_on:
       - eureka-server
     networks:
