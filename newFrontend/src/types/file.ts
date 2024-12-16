@@ -5,4 +5,7 @@ export interface FileMetadata {
     owner: string;
     uploadDate: string;
   }
-  
+
+  export interface DownloadProgressCallback {
+    (progress: number): void;
+  }

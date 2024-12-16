@@ -3,9 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { Upload } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { fileService, handleApiError } from '../services/api';
+import { ProgressBar } from '../components/ProgressBar';
 
 export function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -13,14 +16,23 @@ export function UploadPage() {
     if (!file || !user) return;
 
     try {
-      await fileService.uploadFile(file, user.name);
+      setIsUploading(true);
+      setUploadProgress(0);
+      
+      await fileService.uploadFile(file, user.name, (progress) => {
+        setUploadProgress(progress);
+      });
+      
       toast.success('File uploaded successfully!');
       setFile(null);
-      // Reset the file input
+      setUploadProgress(0);
+      // reset file input
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
     } catch (error) {
       handleApiError(error, 'Error uploading file');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -39,10 +51,11 @@ export function UploadPage() {
               id="file-upload"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               className="hidden"
+              disabled={isUploading}
             />
             <label
               htmlFor="file-upload"
-              className="flex flex-col items-center justify-center cursor-pointer"
+              className={`flex flex-col items-center justify-center ${!isUploading ? 'cursor-pointer' : 'cursor-not-allowed'}`}
             >
               <Upload className="w-8 h-8 text-gray-400 mb-2" />
               <span className="text-sm text-gray-600">
@@ -54,12 +67,21 @@ export function UploadPage() {
             </label>
           </div>
 
+          {isUploading && (
+            <div className="space-y-2">
+              <ProgressBar progress={uploadProgress} />
+              <p className="text-sm text-center text-gray-600">
+                Uploading... {uploadProgress}%
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={!file}
+            disabled={!file || isUploading}
             className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Upload File
+            {isUploading ? 'Uploading...' : 'Upload File'}
           </button>
         </form>
       </div>

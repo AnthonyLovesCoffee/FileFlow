@@ -39,7 +39,8 @@ services:
       MINIO_SECRET_KEY: minioadmin
       METADATA_SERVICE_URL: http://metadata-service:8082
     depends_on:
-      - minio
+      eureka-server:
+        condition: service_healthy
     networks:
       - fileflow-network
 
@@ -57,9 +58,11 @@ services:
       MINIO_SECRET_KEY: minioadmin
       METADATA_SERVICE_URL: http://metadata-service:8082
     depends_on:
-      - minio
+      eureka-server:
+        condition: service_healthy
     networks:
       - fileflow-network
+
 
   frontend:
     build: ./frontend
@@ -120,6 +123,12 @@ services:
       - fileflow-network
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   api-gateway:
     build: ./api-gateway
@@ -130,9 +139,11 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - CORS_ALLOWED_ORIGIN=http://localhost:3001
     depends_on:
-      - eureka-server
+      eureka-server:
+        condition: service_healthy
     networks:
       - fileflow-network
+
 
 
 volumes:
