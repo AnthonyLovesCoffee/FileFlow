@@ -211,7 +211,9 @@ export const login = async (username: string, password: string) => {
       user: username
     };
   } catch (error) {
-    const errorMessage = error.response?.data?.message || 'Login failed';
+    // Get the specific error message from the response if available
+    const errorMessage = error.response?.data?.message || 'Invalid credentials';
+    toast.error(errorMessage); // Add toast notification
     throw new Error(errorMessage);
   }
 };

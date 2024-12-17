@@ -34,14 +34,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginUser = async (username: string, password: string) => {
     try {
       const response = await login(username, password);
-      const { token: newToken } = response;
+      if (response && response.token) {
+        setToken(response.token);
+        setUser(username);
+        setIsAuthenticated(true);
 
-      setToken(newToken);
-      setUser(username);
-      setIsAuthenticated(true);
+        localStorage.setItem('user_token', response.token);
+        localStorage.setItem('user', username);
 
-      localStorage.setItem('user_token', newToken);
-      localStorage.setItem('user', username);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -60,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('user');
   };
 
-  // Don't render children until authentication is initialized
+  // don't render children until authentication is initialized
   if (!isInitialized) {
     return null;
   }
