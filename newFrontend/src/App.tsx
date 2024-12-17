@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { AuthGuard } from './components/AuthGuard';
@@ -18,34 +18,20 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <Navbar />
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/" element={<AuthGuard><HomePage /></AuthGuard>}/>
-            <Route
-              path="/upload"
-              element={
-                <AuthGuard>
-                  <UploadPage />
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/download"
-              element={
-                <AuthGuard>
-                  <DownloadPage />
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/metadata"
-              element={
-                <AuthGuard>
-                  <MetadataPage />
-                </AuthGuard>
-              }
-            />
+
+            {/* Protected routes */}
+            <Route element={<AuthGuard />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route path="/download" element={<DownloadPage />} />
+              <Route path="/metadata" element={<MetadataPage />} />
+            </Route>
+
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </AuthProvider>

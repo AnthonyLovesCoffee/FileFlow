@@ -1,13 +1,14 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export const AuthGuard: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
   if (!isAuthenticated) {
-    // redirect to login if not authenticated
-    return <Navigate to="/login" replace />;
+    // Redirect to login with the attempted location
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

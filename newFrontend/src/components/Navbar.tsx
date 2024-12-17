@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
 
   return (
     <nav className="bg-white shadow-lg">
@@ -15,39 +15,56 @@ export function Navbar() {
             </Link>
           </div>
 
-          {user && (
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/upload"
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
-              >
-                <Upload size={20} />
-                <span>Upload</span>
-              </Link>
-              <Link
-                to="/download"
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
-              >
-                <Download size={20} />
-                <span>Download</span>
-              </Link>
-              <Link
-                to="/metadata"
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
-              >
-                <FileSearch size={20} />
-                <span>Metadata</span>
-              </Link>
-              <button
-                onClick={logout}
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
-              >
-                <LogOut size={20} />
-                <span>Logout</span>
-              </button>
-              <span className="text-gray-600">Welcome, {user.name}</span>
-            </div>
-          )}
+          <div className="flex items-center space-x-4">
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/upload"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <Upload size={20} />
+                  <span>Upload</span>
+                </Link>
+                <Link
+                  to="/download"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <Download size={20} />
+                  <span>Download</span>
+                </Link>
+                <Link
+                  to="/metadata"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <FileSearch size={20} />
+                  <span>Metadata</span>
+                </Link>
+                <button
+                  onClick={logout}
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <LogOut size={20} />
+                  <span>Logout</span>
+                </button>
+                <span className="text-gray-600">Welcome, {user}</span>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <span>Login</span>
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <span>Register</span>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </nav>

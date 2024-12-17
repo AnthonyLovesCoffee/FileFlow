@@ -16,7 +16,7 @@ interface FileMetadata {
 // Configure axios interceptors for global error handling and token management
 axios.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem('user_token');
+      const token = localStorage.getItem('user_token'); // Updated key
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }
@@ -41,7 +41,7 @@ axios.interceptors.response.use(
 export const fileService = {
   // Upload file - updated to use current user's ID from localStorage
   async uploadFile(file: File, onProgress?: (progress: number) => void): Promise<void> {
-    const userId = localStorage.getItem('user_id');
+    const userId = localStorage.getItem('user');
     if (!userId) {
       throw new Error('User not authenticated');
     }
@@ -73,7 +73,7 @@ export const fileService = {
       fileName: string,
       onProgress?: DownloadProgressCallback
   ): Promise<Blob> {
-    const username = localStorage.getItem('user_email'); // Assuming we store email
+    const username = localStorage.getItem('user'); // Assuming we store email
     if (!username) {
       throw new Error('User not authenticated');
     }
@@ -130,7 +130,7 @@ export const fileService = {
 
   // Updated to use GraphQL with authentication
   async getFilesByOwner(): Promise<FileMetadata[]> {
-    const username = localStorage.getItem('user_email');
+    const username = localStorage.getItem('user');
     if (!username) {
       throw new Error('User not authenticated');
     }
@@ -207,9 +207,13 @@ export const login = async (username: string, password: string) => {
       username,
       password,
     });
-    return response.data; // JWT Token and user info
+    return {
+      token: response.data.token,
+      user: username
+    };
   } catch (error) {
-    throw error.response?.data?.message || 'Login failed';
+    const errorMessage = error.response?.data?.message || 'Login failed';
+    throw new Error(errorMessage);
   }
 };
 
