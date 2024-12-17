@@ -15,12 +15,12 @@ services:
   auth-db:
     image: mysql:latest
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=auth_service
-      - MYSQL_USER=mysql
-      - MYSQL_PASSWORD=password
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: auth_service
+      MYSQL_USER: mysql
+      MYSQL_PASSWORD: password
     ports:
-      - "3307:3307"
+      - "3307:3306"
     volumes:
       - auth-mysql-data:/var/lib/mysql
     healthcheck:
@@ -38,12 +38,14 @@ services:
     ports:
       - "8083:8083"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3307/auth_service?allowPublicKeyRetrieval=true&useSSL=false
-      - SPRING_DATASOURCE_USERNAME=mysql
-      - SPRING_DATASOURCE_PASSWORD=password
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SPRING_JPA_SHOW_SQL=true
-      - SPRING_PROFILES_ACTIVE=docker
+      SPRING_DATASOURCE_URL: "jdbc:mysql://auth-db:3306/auth_service?useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: mysql
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: "DC8XFbaWxfIZQUz1ZW9ei1T6IW3cPuq1"  # fake
+
     depends_on:
       auth-db:
         condition: service_healthy
