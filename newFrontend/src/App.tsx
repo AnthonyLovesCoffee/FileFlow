@@ -21,13 +21,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route
-              path="/"
-              element={
-                <AuthGuard>
-                  <HomePage />
-                </AuthGuard>
-              }
-            />
+              path="/" element={<AuthGuard><HomePage /></AuthGuard>}/>
             <Route
               path="/upload"
               element={

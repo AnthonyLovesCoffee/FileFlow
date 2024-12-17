@@ -29,7 +29,7 @@ public class AuthenticationService {
 
     public AuthResponse authenticate(LoginRequest request) throws AuthenticationException {
         // check user credentials
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new AuthenticationException("User not found"));
 
         // verify user password
@@ -39,7 +39,7 @@ public class AuthenticationService {
 
         // creating JWT token
         String token = tokenProvider.createToken(
-                user.getEmail(),
+                user.getUsername(),
                 user.getRoles()
         );
 
@@ -48,12 +48,12 @@ public class AuthenticationService {
     }
 
     public void register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email already in use");
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username already in use");
         }
 
         User user = new User();
-        user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRoles(List.of("ROLE_USER")); // Default role
 

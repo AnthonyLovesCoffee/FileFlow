@@ -44,7 +44,7 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_PROFILES_ACTIVE: docker
-      JWT_SECRET: "DC8XFbaWxfIZQUz1ZW9ei1T6IW3cPuq1"  # fake
+      JWT_SECRET: "DC8XFbaWxfIZQUz1ZW9ei1T6IW3cPuq1"
 
     depends_on:
       auth-db:

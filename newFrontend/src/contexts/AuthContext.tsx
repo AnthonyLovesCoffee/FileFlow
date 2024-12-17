@@ -1,65 +1,49 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { User } from '../types/auth';
-import { authService } from '../services/api';
+import { login, register } from '../services/api';
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<string>;
+  user: string | null;
+  token: string | null;
+  loginUser: (username: string, password: string) => Promise<void>;
+  registerUser: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await authService.login({ email, password });
-      // You might want to fetch user details here if needed
-      setUser({
-        id: response.userId,
-        email: email,
-        roles: [] // Populate roles if available from backend
-      });
-      setIsAuthenticated(true);
-    } catch (error) {
-      setIsAuthenticated(false);
-      throw error;
-    }
+  const loginUser = async (username: string, password: string) => {
+    const response = await login(username, password);
+    setToken(response.token);
+    setUser(username);
+    localStorage.setItem('token', response.token);
+    localStorage.setItem('user', username);
   };
 
-  const register = async (email: string, password: string) => {
-    return await authService.register({ email, password });
+  const registerUser = async (username: string, password: string) => {
+    await register(username, password);
   };
 
   const logout = () => {
-    authService.logout();
     setUser(null);
-    setIsAuthenticated(false);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   return (
-      <AuthContext.Provider value={{
-        user,
-        login,
-        register,
-        logout,
-        isAuthenticated
-      }}>
+      <AuthContext.Provider value={{ user, token, loginUser, registerUser, logout }}>
         {children}
       </AuthContext.Provider>
   );
 };
 
-// Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

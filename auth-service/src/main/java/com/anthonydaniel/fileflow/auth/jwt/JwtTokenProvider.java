@@ -24,19 +24,19 @@ public class JwtTokenProvider {
     private long jwtExpirationMs;
 
     // Create token method
-    public String createToken(String email, List<String> roles) {
+    public String createToken(String username, List<String> roles) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
         // Create claims
         Map<String, Object> claims = new HashMap<>();
-        claims.put("email", email);
+        claims.put("username", username);
         claims.put("roles", roles);
 
         // Build and sign the JWT
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(email)
+                .setSubject(username)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -63,7 +63,7 @@ public class JwtTokenProvider {
     }
 
     // Extract email from token
-    public String getEmailFromToken(String token) {
+    public String getUsernameFromToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()

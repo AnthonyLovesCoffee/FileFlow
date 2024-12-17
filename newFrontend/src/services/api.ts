@@ -198,32 +198,30 @@ export const handleApiError = (error: unknown, customMessage?: string) => {
   }
 };
 
-export const authService = {
-  login: async ({ email, password }: { email: string; password: string }) => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+const API_URL = 'http://localhost:8083/auth';
+
+// Login API
+export const login = async (username: string, password: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/login`, {
+      username,
+      password,
     });
-    if (!response.ok) throw new Error('Login failed');
-    return await response.json();
-  },
+    return response.data; // JWT Token and user info
+  } catch (error) {
+    throw error.response?.data?.message || 'Login failed';
+  }
+};
 
-  register: async ({ email, password }: { email: string; password: string }) => {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+// Register API
+export const register = async (username: string, password: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/register`, {
+      username,
+      password,
     });
-    if (!response.ok) throw new Error('Registration failed');
-    return await response.json();
-  },
-
-  logout: () => {
-    localStorage.removeItem('token');
-  },
-
-  isAuthenticated: () => {
-    return !!localStorage.getItem('token');
-  },
+    return response.data; // Success message
+  } catch (error) {
+    throw error.response?.data?.message || 'Registration failed';
+  }
 };
