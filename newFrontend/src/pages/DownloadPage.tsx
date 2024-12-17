@@ -23,7 +23,7 @@ interface FileInfo {
   
   
     useEffect(() => {
-      if (user?.name) {
+      if (user) {
         fetchUserFiles();
       }
     }, [user]);
@@ -37,7 +37,7 @@ interface FileInfo {
         // }
         //  if (!user) return;
         setLoading(true);
-        const data = await fileService.getFilesByOwner(user.name);
+        const data = await fileService.getFilesByOwner(user);
         setFiles(data);
       } catch (error) {
         toast.error('Error fetching files');
@@ -50,14 +50,14 @@ interface FileInfo {
   
     const handleDownload = async (fileName: string) => {
         try {
-            if (!user?.name) return;
+            if (!user) return;
             
             // initial state for files download
             setDownloadingFiles(prev => ({ ...prev, [fileName]: true }));
             setDownloadProgress(prev => ({ ...prev, [fileName]: 0 }));
       
             const blob = await fileService.downloadFile(
-              user.name, 
+              user, 
               fileName,
               (progress) => {
                 setDownloadProgress(prev => ({ ...prev, [fileName]: progress }));

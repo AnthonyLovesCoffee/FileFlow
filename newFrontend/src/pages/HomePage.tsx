@@ -9,7 +9,7 @@ export function HomePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <h1 className="text-4xl font-bold text-center text-gray-900 mb-8">
-          Welcome to FileFlow, {user?.name}!
+          Welcome to FileFlow, {user}!
         </h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <Link

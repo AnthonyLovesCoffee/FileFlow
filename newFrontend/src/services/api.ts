@@ -73,7 +73,7 @@ export const fileService = {
       fileName: string,
       onProgress?: DownloadProgressCallback
   ): Promise<Blob> {
-    const username = localStorage.getItem('user'); // Assuming we store email
+    const username = localStorage.getItem('user'); // Assuming we store user
     if (!username) {
       throw new Error('User not authenticated');
     }
@@ -92,7 +92,6 @@ export const fileService = {
         throw new Error('Download failed');
       }
 
-      // Existing download logic remains the same...
       const contentLength = Number(response.headers.get('Content-Length')) || 0;
       const reader = response.body?.getReader();
       if (!reader) throw new Error('Failed to initialize download');
