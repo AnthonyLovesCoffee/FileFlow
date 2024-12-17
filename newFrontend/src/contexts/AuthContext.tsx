@@ -16,20 +16,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  // Initialize auth state from localStorage
-  useEffect(() => {
-    const storedToken = localStorage.getItem('user_token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(storedUser);
-      setIsAuthenticated(true);
-    }
-    setIsInitialized(true);
-  }, []);
 
   const loginUser = async (username: string, password: string) => {
     try {
@@ -62,11 +48,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('user_token');
     localStorage.removeItem('user');
   };
-
-  // don't render children until authentication is initialized
-  if (!isInitialized) {
-    return null;
-  }
 
   return (
     <AuthContext.Provider value={{

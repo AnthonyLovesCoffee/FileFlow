@@ -41,7 +41,6 @@ interface FileInfo {
         setFiles(data);
       } catch (error) {
         toast.error('Error fetching files');
-        console.error('Fetch error:', error);
       }
       finally {
         setLoading(false);
@@ -55,7 +54,7 @@ interface FileInfo {
             // initial state for files download
             setDownloadingFiles(prev => ({ ...prev, [fileName]: true }));
             setDownloadProgress(prev => ({ ...prev, [fileName]: 0 }));
-      
+
             const blob = await fileService.downloadFile(
               user, 
               fileName,
@@ -63,7 +62,7 @@ interface FileInfo {
                 setDownloadProgress(prev => ({ ...prev, [fileName]: progress }));
               }
             );
-      
+
             // create and trigger download
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -125,9 +124,13 @@ interface FileInfo {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDownload(file.fileName)}
-                        disabled={downloadingFiles[file.fileName]}
-                        className="flex items-center space-x-1 text-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => {
+                              try {
+                                  handleDownload(file.fileName);
+                              } catch (error) {
+                                  console.error('Error in download handler:', error);
+                              }
+                          }}
                       >
                         <Download className="w-4 h-4" />
                         <span>{downloadingFiles[file.fileName] ? 'Downloading...' : 'Download'}</span>

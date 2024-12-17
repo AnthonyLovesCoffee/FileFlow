@@ -69,24 +69,20 @@ export const fileService = {
   },
 
   // Download file - use current user's context
-  async downloadFile(
-      fileName: string,
-      onProgress?: DownloadProgressCallback
-  ): Promise<Blob> {
-    const username = localStorage.getItem('user'); // Assuming we store user
+  async downloadFile(user: string, fileName: string, onProgress?: DownloadProgressCallback): Promise<Blob> {
+    const username = localStorage.getItem('user');
     if (!username) {
       throw new Error('User not authenticated');
     }
 
     try {
-      const response = await fetch(
-          `${REST_API_BASE}/download/${encodeURIComponent(username)}/${encodeURIComponent(fileName)}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('user_token')}`
-            }
-          }
-      );
+      const apiUrl = `${REST_API_BASE}/download/${encodeURIComponent(username)}/${encodeURIComponent(fileName)}`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('user_token')}`
+        }
+      });
 
       if (!response.ok) {
         throw new Error('Download failed');
@@ -211,9 +207,7 @@ export const login = async (username: string, password: string) => {
       user: username
     };
   } catch (error) {
-    // Get the specific error message from the response if available
-    const errorMessage = error.response?.data?.message || 'Invalid credentials';
-    toast.error(errorMessage); // Add toast notification
+    const errorMessage = error.response?.data?.message || 'Login failed';
     throw new Error(errorMessage);
   }
 };
