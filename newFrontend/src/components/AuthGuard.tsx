@@ -1,12 +1,15 @@
-import { Navigate } from 'react-router-dom';
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+export const AuthGuard: React.FC = () => {
+  const { isAuthenticated } = useAuth();
 
-  if (!user) {
+  if (!isAuthenticated) {
+    // Redirect to login if not authenticated
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
-}
+  // Render the child routes
+  return <Outlet />;
+};

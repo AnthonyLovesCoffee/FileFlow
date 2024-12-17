@@ -12,6 +12,43 @@ services:
     networks:
       - fileflow-network
 
+  auth-db:
+    image: mysql:latest
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=auth_service
+      - MYSQL_USER=mysql
+      - MYSQL_PASSWORD=password
+    ports:
+      - "3307:3307"
+    volumes:
+      - auth-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3307/auth_service?allowPublicKeyRetrieval=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=mysql
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - fileflow-network
+
+
   metadata-service:
     build:
       context: ./metadata-service
@@ -60,14 +97,6 @@ services:
     depends_on:
       eureka-server:
         condition: service_healthy
-    networks:
-      - fileflow-network
-
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
     networks:
       - fileflow-network
 
@@ -145,9 +174,9 @@ services:
       - fileflow-network
 
 
-
 volumes:
   metadata-postgres-data:
+  auth-mysql-data:
   minio_data1:
   minio_data2:
   minio_data3:

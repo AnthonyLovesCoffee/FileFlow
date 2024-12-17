@@ -1,60 +1,65 @@
-import React, { createContext, useContext, useState } from 'react';
-import { AuthContextType, User } from '../types/auth';
-import { toast } from 'react-hot-toast';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { User } from '../types/auth';
+import { authService } from '../services/api';
+
+interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<string>;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
 
   const login = async (email: string, password: string) => {
     try {
-      // TODO: Replace with actual API call
-      const mockUser = {
-        id: '1',
-        email,
-        name: 'Daniel',
-      };
-      setUser(mockUser);
-      toast.success('Logged in successfully!');
+      const response = await authService.login({ email, password });
+      // You might want to fetch user details here if needed
+      setUser({
+        id: response.userId,
+        email: email,
+        roles: [] // Populate roles if available from backend
+      });
+      setIsAuthenticated(true);
     } catch (error) {
-      toast.error('Login failed');
+      setIsAuthenticated(false);
       throw error;
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    try {
-      // TODO: Replace with actual API call
-      const mockUser = {
-        id: '1',
-        email,
-        name,
-      };
-      setUser(mockUser);
-      toast.success('Registration successful!');
-    } catch (error) {
-      toast.error('Registration failed');
-      throw error;
-    }
+  const register = async (email: string, password: string) => {
+    return await authService.register({ email, password });
   };
 
   const logout = () => {
+    authService.logout();
     setUser(null);
-    toast.success('Logged out successfully!');
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider value={{
+        user,
+        login,
+        register,
+        logout,
+        isAuthenticated
+      }}>
+        {children}
+      </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+// Custom hook to use the auth context
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};

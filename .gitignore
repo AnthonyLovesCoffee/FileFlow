@@ -34,5 +34,4 @@ target/
 *.iws
 *.iml
 *.ipr
-
-.env
+!/newFrontend/.env
