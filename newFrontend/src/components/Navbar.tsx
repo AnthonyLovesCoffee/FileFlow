@@ -1,4 +1,4 @@
-import { LogOut, Upload, Download, FileSearch } from 'lucide-react';
+import { LogOut, Upload, Download, FileSearch, Share2, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
@@ -30,7 +30,14 @@ export function Navbar() {
                   className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
                 >
                   <Download size={20} />
-                  <span>Download</span>
+                  <span>Files & Download</span>
+                </Link>
+                <Link
+                  to="/shares"
+                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                >
+                  <Share2 size={20} />
+                  <span>Shares</span>
                 </Link>
                 <Link
                   to="/metadata"
@@ -41,12 +48,11 @@ export function Navbar() {
                 </Link>
                 <button
                   onClick={logout}
-                  className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
+                  className="flex items-center space-x-1 text-red-600 hover:text-red-900"
                 >
                   <LogOut size={20} />
                   <span>Logout</span>
                 </button>
-                <span className="text-gray-600">Welcome, {user}</span>
               </>
             ) : (
               <>

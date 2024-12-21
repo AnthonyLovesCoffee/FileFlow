@@ -2,6 +2,9 @@ package com.anthonydaniel.fileflow.metadata.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+
 import lombok.Data;
 
 @Data
@@ -24,6 +27,17 @@ public class FileMetadata {
 
     @Column(nullable = true)
     private String owner;
+
+    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<FileShare> shares = new HashSet<>();
+
+    public Set<FileShare> getShares() {
+        return shares;
+    }
+
+    public void setShares(Set<FileShare> shares) {
+        this.shares = shares;
+    }
 
     public Integer getId() {
         return id;

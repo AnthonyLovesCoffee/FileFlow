@@ -1,5 +1,5 @@
 export interface FileMetadata {
-    id: string;
+    id: number;
     fileName: string;
     fileSize: number;
     owner: string;
@@ -9,3 +9,11 @@ export interface FileMetadata {
   export interface DownloadProgressCallback {
     (progress: number): void;
   }
+
+export interface FileShare {
+  shareId: number;
+  file: FileMetadata;
+  sharedWithUsername: string;
+  sharedDate: string;
+  sharedByUsername: string;
+}

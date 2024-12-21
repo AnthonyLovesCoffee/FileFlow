@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,7 +19,6 @@ export const RegisterPage = () => {
             setError('Passwords do not match');
             return;
         }
-
 
         setError(null);
         setMessage(null);

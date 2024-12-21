@@ -4,6 +4,8 @@ import { Upload } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { fileService, handleApiError } from '../services/api';
 import { ProgressBar } from '../components/ProgressBar';
+import { formatFileSize } from '../utils/formatters';
+
 
 export function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -18,12 +20,12 @@ export function UploadPage() {
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      
-      await fileService.uploadFile(file, user.name, (progress) => {
+
+      const fileId = await fileService.uploadFile(file, (progress) => {
         setUploadProgress(progress);
       });
-      
-      toast.success('File uploaded successfully!');
+
+      toast.success(`File uploaded successfully! (ID: ${fileId})`);
       setFile(null);
       setUploadProgress(0);
       // reset file input
@@ -62,8 +64,7 @@ export function UploadPage() {
                 {file ? file.name : 'Click to select a file'}
               </span>
               <span className="text-xs text-gray-500 mt-1">
-                {file && `Size: ${(file.size / 1024).toFixed(2)} KB`}
-              </span>
+                {file && `Size: ${formatFileSize(file.size)}`}</span>
             </label>
           </div>
 

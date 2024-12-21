@@ -6,14 +6,29 @@ type FileMetadata {
     uploadDate: String!
 }
 
+type FileShare {
+    shareId: Int!
+    file: FileMetadata!
+    sharedWithUsername: String!
+    sharedDate: String!
+    sharedByUsername: String!
+}
+
 type Query {
     getAllMetadata: [FileMetadata!]!
     getMetadataById(id: Int!): FileMetadata
     searchMetadata(fileName: String!): [FileMetadata!]!
     getFilesByOwner(owner: String!): [FileMetadata!]!
-}
+
+    getFilesSharedWithMe(username: String!): [FileShare!]!
+    getFilesSharedByMe(username: String!): [FileShare!]!
+    getSharesForFile(fileId: Int!): [FileShare!]!
+    hasFileAccess(fileId: Int!, username: String!): Boolean!}
 
 type Mutation {
     saveMetadata(fileName: String!, fileSize: Int!, owner: String): FileMetadata
     deleteMetadata(id: Int!): Boolean
+
+    shareFile(fileId: Int!, sharedWithUsername: String!, sharedByUsername: String!): Boolean!
+    revokeShare(fileId: Int!, sharedWithUsername: String!, sharedByUsername: String!): Boolean!
 }

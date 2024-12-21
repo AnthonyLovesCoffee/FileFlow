@@ -21,12 +21,6 @@ import org.springframework.web.ErrorResponseException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-//import java.io.IOException;
-//import java.net.MalformedURLException;
-//import java.nio.file.Files;
-//import java.nio.file.Path;
-//import java.nio.file.Paths;
-
 import io.minio.*;
 
 @Service
@@ -80,7 +74,32 @@ public class FileService {
 
     public String saveFile(MultipartFile file, String userId) {
         try {
-            String objectName = userId + "/" + file.getOriginalFilename();
+            // save metadata to get the file ID
+            String metadataMutation = """
+                mutation {
+                    saveMetadata(fileName: "%s", fileSize: %d, owner: "%s") {
+                        id
+                        fileName
+                    }
+                }
+            """.formatted(file.getOriginalFilename(), file.getSize(), userId);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("query", metadataMutation);
+
+            Map<String, Object> response = metadataRestTemplate.postForObject(
+                    metadataServiceUrl + "/graphql",
+                    requestBody,
+                    Map.class
+            );
+
+            // extract file ID from response
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            Map<String, Object> savedMetadata = (Map<String, Object>) data.get("saveMetadata");
+            Integer fileId = (Integer) savedMetadata.get("id");
+
+            // add fileId to the object name
+            String objectName = String.format("%s/%d_%s", userId, fileId, file.getOriginalFilename());
             InputStream inputStream = file.getInputStream();
 
             minioClient.putObject(PutObjectArgs.builder()
@@ -88,36 +107,45 @@ public class FileService {
                     .object(objectName)
                     .stream(inputStream, file.getSize(), -1)
                     .contentType(file.getContentType())
+                    .userMetadata(Map.of("fileId", fileId.toString())) // store fileId in object metadata
                     .build());
 
-            // Notify Metadata Service
-            String url = metadataServiceUrl + "/graphql"; // Metadata Service URL
-            String mutation = """
-                mutation {
-                    saveMetadata(fileName: "%s", fileSize: %d, owner: "%s") {
-                        id
-                        fileName
-                        fileSize
-                        owner
-                    }
-                }
-            """.formatted(file.getOriginalFilename(), file.getSize(), userId);
-
-            Map<String, Object> response = metadataRestTemplate.postForObject(
-                    url,
-                    Map.of("query", mutation),
-                    Map.class
-            );
-
-            return "File uploaded successfully: " + file.getOriginalFilename();
+            return "File uploaded successfully. FileID: " + fileId;
         } catch (Exception e) {
             throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
         }
     }
 
-    public Resource getFile(String userId, String fileName) {
+    public Resource getFile(String requestingUserId, Integer fileId) {
         try {
-            String objectName = userId + "/" + fileName;
+            // get the filename + owner from metadata service
+            String query = """
+            query {
+                getMetadataById(id: %d) {
+                    fileName
+                    owner
+                }
+            }
+        """.formatted(fileId);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("query", query);
+
+            ResponseEntity<Map<String, Object>> response = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            Map<String, Object> metadata = (Map<String, Object>) data.get("getMetadataById");
+            String fileName = (String) metadata.get("fileName");
+            String owner = (String) metadata.get("owner");
+
+            // use owners username to construct the objects name
+            String objectName = String.format("%s/%d_%s", owner, fileId, fileName);
+
             InputStream stream = minioClient.getObject(GetObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectName)
@@ -130,6 +158,80 @@ public class FileService {
         }
     }
 
+    public boolean checkFileAccessPermission(Integer fileId, String username, String authHeader) {
+        try {
+            logger.debug("Checking file access permission for fileId: {}, username: {}", fileId, username);
+
+            // get the owner info
+            String metadataQuery = """
+            query {
+                getMetadataById(id: %d) {
+                    owner
+                }
+            }
+        """.formatted(fileId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", authHeader);
+
+            Map<String, Object> metadataRequestBody = new HashMap<>();
+            metadataRequestBody.put("query", metadataQuery);
+
+            HttpEntity<Map<String, Object>> metadataRequest = new HttpEntity<>(metadataRequestBody, headers);
+            ResponseEntity<Map<String, Object>> metadataResponse = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    metadataRequest,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            if (metadataResponse.getBody() != null) {
+                Map<String, Object> data = (Map<String, Object>) metadataResponse.getBody().get("data");
+                Map<String, Object> metadata = (Map<String, Object>) data.get("getMetadataById");
+                String owner = (String) metadata.get("owner");
+
+                // if user = owner, return true
+                if (username.equals(owner)) {
+                    logger.debug("User {} is the owner of file {}", username, fileId);
+                    return true;
+                }
+
+                // if not owner, check if file is shared with user
+                String accessQuery = """
+                query {
+                    hasFileAccess(fileId: %d, username: "%s")
+                }
+                """.formatted(fileId, username);
+
+                Map<String, Object> accessRequestBody = new HashMap<>();
+                accessRequestBody.put("query", accessQuery);
+
+                HttpEntity<Map<String, Object>> accessRequest = new HttpEntity<>(accessRequestBody, headers);
+                ResponseEntity<Map<String, Object>> accessResponse = metadataRestTemplate.exchange(
+                        metadataServiceUrl + "/graphql",
+                        HttpMethod.POST,
+                        accessRequest,
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
+                );
+
+                if (accessResponse.getBody() != null) {
+                    Map<String, Object> accessData = (Map<String, Object>) accessResponse.getBody().get("data");
+                    if (accessData != null) {
+                        Boolean hasAccess = (Boolean) accessData.get("hasFileAccess");
+                        logger.debug("Access for user {} on file {}: {}", username, fileId, hasAccess);
+                        return hasAccess != null && hasAccess;
+                    }
+                }
+            }
+
+            logger.warn("No access found for user {} on file {}", username, fileId);
+            return false;
+        } catch (Exception e) {
+            logger.error("Error checking file access permission: {}", e.getMessage(), e);
+            return false;
+        }
+    }
 
 //    public void deleteFile(String fileName) {
 //        try {

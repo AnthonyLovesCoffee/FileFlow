@@ -7,7 +7,7 @@ export const AuthGuard: React.FC = () => {
   const location = useLocation();
 
   if (!isAuthenticated) {
-    // Redirect to login with the attempted location
+    // redirect to login with the attempted location
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

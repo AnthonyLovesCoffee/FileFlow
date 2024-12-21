@@ -1,163 +1,185 @@
 import { useState, useEffect } from 'react';
-import { Download,FileIcon, Loader } from 'lucide-react';
+import { Download, FileIcon, Loader, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import { fileService, handleApiError } from '../services/api';
-import { ProgressBar } from '../components/ProgressBar';
+import { fileService, shareService, handleApiError } from '../services/api';
+import { FileListItem } from '../components/FileListItem';
+import { ShareModal } from '../components/ShareModal';
+import type { FileMetadata } from '../types/file';
 
+export function DownloadPage() {
+  const [files, setFiles] = useState<FileMetadata[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<FileMetadata[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState<Record<number, number>>({});
+  const [downloadingFiles, setDownloadingFiles] = useState<Record<number, boolean>>({});
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ id: number; fileName: string } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
+  useEffect(() => {
+    if (user) {
+      fetchUserFiles();
+    }
+  }, [user]);
 
-interface FileInfo {
-    id: string;
-    fileName: string;
-    fileSize: number;
-    uploadDate: string;
-  }
-  
-  export function DownloadPage() {
-    const [files, setFiles] = useState<FileInfo[]>([]);
-    const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
-    const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
-    const [downloadingFiles, setDownloadingFiles] = useState<Record<string, boolean>>({});
-  
-  
-    useEffect(() => {
-      if (user) {
-        fetchUserFiles();
-      }
-    }, [user]);
-  
-    const fetchUserFiles = async () => {
+  useEffect(() => {
+    filterFiles();
+  }, [searchTerm, files]);
+
+  const filterFiles = () => {
+    const filtered = files.filter(file =>
+      file.fileName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredFiles(filtered);
+  };
+
+  const fetchUserFiles = async () => {
     if (!user) return;
-      try {
-        // const response = await fetch(`${import.meta.env.VITE_REST_API_BASE}/files/${user?.name}`);
-        // if (!response.ok) {
-        //   throw new Error('Failed to fetch files');
-        // }
-        //  if (!user) return;
-        setLoading(true);
-        const data = await fileService.getFilesByOwner(user);
-        setFiles(data);
-      } catch (error) {
-        toast.error('Error fetching files');
-      }
-      finally {
-        setLoading(false);
-      }
-    };
-  
-    const handleDownload = async (fileName: string) => {
-        try {
-            if (!user) return;
-            
-            // initial state for files download
-            setDownloadingFiles(prev => ({ ...prev, [fileName]: true }));
-            setDownloadProgress(prev => ({ ...prev, [fileName]: 0 }));
+    try {
+      setLoading(true);
+      const data = await fileService.getFilesByOwner();
+      setFiles(data);
+      setFilteredFiles(data);
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            const blob = await fileService.downloadFile(
-              user, 
-              fileName,
-              (progress) => {
-                setDownloadProgress(prev => ({ ...prev, [fileName]: progress }));
-              }
-            );
+  const handleShare = async (fileId: number) => {
+    const file = files.find(f => f.id === fileId);
+    if (!file) return;
 
-            // create and trigger download
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            toast.success('File downloaded successfully!');
-          } catch (error) {
-            handleApiError(error);
-            toast.error('Error downloading file');
-          } finally {
-            // reset download state
-            setDownloadingFiles(prev => ({ ...prev, [fileName]: false }));
-            setDownloadProgress(prev => ({ ...prev, [fileName]: 0 }));
-          }
-        };
-  
-      if (loading) {
-        return (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader className="w-8 h-8 animate-spin text-blue-500" />
-          </div>
-        );
-      }
-    
-      return (
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-center mb-6">
-              <Download className="w-12 h-12 text-blue-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-center mb-6">Your Files</h2>
-    
-            {files.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <FileIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p>No files found</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex flex-col p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <FileIcon className="w-6 h-6 text-gray-400" />
-                        <div>
-                          <p className="font-medium">{file.fileName}</p>
-                          <p className="text-sm text-gray-500">
-                            Size: {formatFileSize(file.fileSize)} • Uploaded:{' '}
-                            {new Date(file.uploadDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                          onClick={() => {
-                              try {
-                                  handleDownload(file.fileName);
-                              } catch (error) {
-                                  console.error('Error in download handler:', error);
-                              }
-                          }}
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>{downloadingFiles[file.fileName] ? 'Downloading...' : 'Download'}</span>
-                      </button>
-                    </div>
-                    
-                    {downloadingFiles[file.fileName] && (
-                      <div className="mt-4">
-                        <ProgressBar progress={downloadProgress[file.fileName] || 0} />
-                        <p className="text-sm text-center text-gray-600">
-                          Downloading... {downloadProgress[file.fileName] || 0}%
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+    setSelectedFile({ id: fileId, fileName: file.fileName });
+    setIsShareModalOpen(true);
+  };
+
+  const handleShareSubmit = async (username: string) => {
+    if (!selectedFile) return;
+
+    try {
+      setIsUpdating(true);
+      await shareService.shareFile(selectedFile.id, username);
+      toast.success(`File shared with ${username}`);
+      setIsShareModalOpen(false);
+      setSelectedFile(null);
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async (fileId: number) => {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    try {
+      await fileService.deleteFile(fileId);
+      setFiles(files => files.filter(f => f.id !== fileId));
+      toast.success('File deleted successfully');
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  const handleDownload = async (fileId: number, fileName: string) => {
+    try {
+      setDownloadingFiles(prev => ({ ...prev, [fileId]: true }));
+      setDownloadProgress(prev => ({ ...prev, [fileId]: 0 }));
+
+      const blob = await fileService.downloadFile(
+        fileId,
+        (progress) => {
+          setDownloadProgress(prev => ({ ...prev, [fileId]: progress }));
+        }
+      );
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('File downloaded successfully');
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setDownloadingFiles(prev => ({ ...prev, [fileId]: false }));
+      setDownloadProgress(prev => ({ ...prev, [fileId]: 0 }));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-center mb-6">
+          <Download className="w-12 h-12 text-blue-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-center mb-6">Your Files</h2>
+
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search files by name..."
+              className="w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           </div>
         </div>
-      );
-    }
 
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        {filteredFiles.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            <FileIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p>{searchTerm ? 'No matching files found' : 'No files found'}</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredFiles.map((file) => (
+              <FileListItem
+                key={file.id}
+                file={file}
+                onShare={handleShare}
+                onDelete={handleDelete}
+                onDownload={handleDownload}
+                isDownloading={!!downloadingFiles[file.id]}
+                downloadProgress={downloadProgress[file.id] || 0}
+              />
+            ))}
+          </div>
+        )}
+
+        {selectedFile && (
+          <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false);
+              setSelectedFile(null);
+            }}
+            onShare={handleShareSubmit}
+            fileName={selectedFile.fileName}
+            fileId={selectedFile.id}
+          />
+        )}
+      </div>
+    </div>
+  );
 }

@@ -9,6 +9,9 @@ import { HomePage } from './pages/HomePage';
 import { UploadPage } from './pages/UploadPage';
 import { DownloadPage } from './pages/DownloadPage';
 import { MetadataPage } from './pages/MetadataPage';
+import { SharesPage } from './pages/SharesPage';
+
+
 
 function App() {
   return (
@@ -28,6 +31,7 @@ function App() {
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/download" element={<DownloadPage />} />
               <Route path="/metadata" element={<MetadataPage />} />
+              <Route path="/shares" element={<SharesPage />} />
             </Route>
 
             {/* Catch all route */}
