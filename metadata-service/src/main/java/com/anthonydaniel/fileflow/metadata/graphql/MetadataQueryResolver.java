@@ -35,4 +35,9 @@ public class MetadataQueryResolver {
     public List<FileMetadata> getFilesByOwner(@Argument String owner) {
         return metadataService.getFilesByOwner(owner);
     }
+
+    @QueryMapping
+    public List<FileMetadata> getFilesByTag(@Argument String tag) {
+        return metadataService.getByTag(tag);
+    }
 }

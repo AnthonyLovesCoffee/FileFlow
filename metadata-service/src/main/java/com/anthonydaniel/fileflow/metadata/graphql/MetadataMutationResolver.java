@@ -9,6 +9,8 @@ import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 
+import java.util.List;
+
 
 @Controller
 public class MetadataMutationResolver {
@@ -19,9 +21,10 @@ public class MetadataMutationResolver {
     public FileMetadata saveMetadata(
             @Argument String fileName,
             @Argument Integer fileSize,
-            @Argument String owner
+            @Argument String owner,
+            @Argument List<String> tags
     ) {
-        return metadataService.saveMetadata(fileName, fileSize, owner);
+        return metadataService.saveMetadata(fileName, fileSize, owner, tags);
     }
 
     @MutationMapping

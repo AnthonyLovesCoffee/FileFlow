@@ -31,6 +31,12 @@ public class FileMetadata {
     @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<FileShare> shares = new HashSet<>();
 
+    @ElementCollection
+    @CollectionTable(name = "file_tags", joinColumns = @JoinColumn(name = "id"))
+    @Column(name = "tag")
+
+    private Set<String> tags = new HashSet<>();
+
     public Set<FileShare> getShares() {
         return shares;
     }
@@ -78,4 +84,8 @@ public class FileMetadata {
     public void setOwner(String owner) {
         this.owner = owner;
     }
+
+    public Set<String> getTags() {return tags;}
+
+    public void setTags(Set<String> tags) {this.tags = tags;}
 }

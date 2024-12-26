@@ -45,7 +45,10 @@ public class FileController {
 
     @PostMapping("/upload")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file,
+                                             @RequestParam(value="tags", required=false) List<String> tags,
                                              @RequestHeader("Authorization") String authHeader) {
+        log.info("File: {}, Tags: {}, AuthHeader: {}", file.getOriginalFilename(), tags, authHeader);
+
         try {
             // validate token
             TokenValidationResponse validation = authenticationService.validateToken(authHeader);
@@ -54,7 +57,7 @@ public class FileController {
                         .body(validation.getMessage());
             }
 
-            String response = fileService.saveFile(file, validation.getUsername());
+            String response = fileService.saveFile(file, validation.getUsername(), tags);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error uploading file: {}", e.getMessage(), e);
@@ -65,6 +68,7 @@ public class FileController {
 
     @PostMapping("/upload-multiple")
     public ResponseEntity<String> uploadMultipleFiles(@RequestParam("files") List<MultipartFile> files,
+                                                      @RequestParam(value="tags", required=false) List<String> tags,
                                                       @RequestHeader("Authorization") String authHeader) {
         try {
             // validate token
@@ -75,7 +79,7 @@ public class FileController {
             }
 
             for (MultipartFile file : files) {
-                fileService.saveFile(file, validation.getUsername());
+                fileService.saveFile(file, validation.getUsername(), tags);
             }
             return ResponseEntity.ok("Files uploaded successfully");
         } catch (Exception e) {
@@ -161,6 +165,49 @@ public class FileController {
             log.error("Unexpected error processing download request: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error processing request: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/files-by-tag")
+    public ResponseEntity<?> getFilesByTag(@RequestParam("tag") String tag,
+                                           @RequestHeader("Authorization") String authHeader) {
+        try {
+            // validate token
+            TokenValidationResponse validation = authenticationService.validateToken(authHeader);
+            if (!validation.isValid()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(validation.getMessage());
+            }
+
+            // query our metadata service for files with the given tag
+            String query = """
+            query {
+                getFilesByTag(tag: "%s") {
+                    id
+                    fileName
+                    tags
+                }
+            }
+        """.formatted(tag);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("query", query);
+
+            ResponseEntity<Map<String, Object>> response = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            List<Map<String, Object>> files = (List<Map<String, Object>>) data.get("getFilesByTag");
+
+            return ResponseEntity.ok(files);
+        } catch (Exception e) {
+            log.error("Error querying files by tag: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error querying files: " + e.getMessage());
         }
     }
 }

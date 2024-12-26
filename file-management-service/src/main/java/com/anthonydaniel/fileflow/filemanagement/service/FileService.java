@@ -72,17 +72,24 @@ public class FileService {
     @Autowired
     private RestTemplate restTemplate;
 
-    public String saveFile(MultipartFile file, String userId) {
+    public String saveFile(MultipartFile file, String userId, List<String> tags) {
         try {
-            // save metadata to get the file ID
+            // converting tags to a GraphQL-compatible string representation (["tag1", "tag2"])
+            String tagsString = tags != null ? tags.stream()
+                    .map(tag -> "\"" + tag + "\"")
+                    .reduce((tag1, tag2) -> tag1 + ", " + tag2)
+                    .map(result -> "[" + result + "]")
+                    .orElse("[]") : "[]";
+
+            // saving metadata to get the file ID
             String metadataMutation = """
-                mutation {
-                    saveMetadata(fileName: "%s", fileSize: %d, owner: "%s") {
-                        id
-                        fileName
-                    }
+            mutation {
+                saveMetadata(fileName: "%s", fileSize: %d, owner: "%s", tags: %s) {
+                    id
+                    fileName
                 }
-            """.formatted(file.getOriginalFilename(), file.getSize(), userId);
+            }
+        """.formatted(file.getOriginalFilename(), file.getSize(), userId, tagsString);
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("query", metadataMutation);
@@ -107,7 +114,7 @@ public class FileService {
                     .object(objectName)
                     .stream(inputStream, file.getSize(), -1)
                     .contentType(file.getContentType())
-                    .userMetadata(Map.of("fileId", fileId.toString())) // store fileId in object metadata
+                    .userMetadata(Map.of("fileId", fileId.toString()))
                     .build());
 
             return "File uploaded successfully. FileID: " + fileId;
@@ -115,6 +122,7 @@ public class FileService {
             throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
         }
     }
+
 
     public Resource getFile(String requestingUserId, Integer fileId) {
         try {

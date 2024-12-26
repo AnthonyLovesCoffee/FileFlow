@@ -122,16 +122,16 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: server --console-address ":9001" http://minio{1...2}/data{1...2}
+    command: server --console-address ":9001" http://minio1/data1 http://minio1/data2 http://minio2/data1 http://minio2/data2
     volumes:
       - minio_data1:/data1
       - minio_data2:/data2
     networks:
       - fileflow-network
+    depends_on:
+      - minio2
 
   minio2:
     image: minio/minio
@@ -140,11 +140,9 @@ services:
       - "9002:9000"
       - "9003:9001"
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: server --console-address ":9001" http://minio{1...2}/data{1...2}
+    command: server --console-address ":9001" http://minio1/data1 http://minio1/data2 http://minio2/data1 http://minio2/data2
     volumes:
       - minio_data3:/data1
       - minio_data4:/data2

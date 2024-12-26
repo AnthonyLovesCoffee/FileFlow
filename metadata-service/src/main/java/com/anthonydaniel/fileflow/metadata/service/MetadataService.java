@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -26,13 +27,14 @@ public class MetadataService {
         return repository.findByFileNameContaining(fileName);
     }
 
-    public FileMetadata saveMetadata(String fileName, Integer fileSize, String owner) {
+    public FileMetadata saveMetadata(String fileName, Integer fileSize, String owner, List<String> tags) {
         System.out.println("Service received: fileName=" + fileName + ", fileSize=" + fileSize + ", owner=" + owner);
         FileMetadata metadata = new FileMetadata();
         metadata.setFileName(fileName);
         metadata.setFileSize(fileSize);
         metadata.setOwner(owner);
         metadata.setUploadDate(LocalDateTime.now());
+        metadata.setTags(new HashSet<>(tags));
 
         try {
             FileMetadata savedMetadata = repository.save(metadata);
@@ -55,6 +57,10 @@ public class MetadataService {
 
     public List<FileMetadata> getFilesByOwner(String owner) {
         return repository.findByOwner(owner);
+    }
+
+    public List<FileMetadata> getByTag(String tag) {
+        return repository.findByTag(tag);
     }
 }
 
