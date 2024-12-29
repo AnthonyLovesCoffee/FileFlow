@@ -39,38 +39,62 @@ axios.interceptors.response.use(
 );
 
 export const fileService = {
-  async uploadFile(
-      file: File,
-      tags: string[],
-      onProgress?: (progress: number) => void
-  ): Promise<number> {
+async uploadFile(
+    file: File,
+    tags: string[],
+    onProgress?: (progress: number) => void
+): Promise<number> {
+    if (!file) {
+        throw new Error('No file provided');
+    }
 
     const formData = new FormData();
     formData.append('file', file);
-    tags.forEach(tag => {
-      formData.append('tags[]', tag);
+
+    // Log the tags being sent
+    console.log('Sending tags:', tags);
+
+    // Append tags as array elements
+    tags.forEach((tag, index) => {
+        formData.append(`tags[${index}]`, tag);
     });
 
     try {
-      const response = await axios.post(`${REST_API_BASE}/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            onProgress?.(percentCompleted);
-          }
-        },
-      });
+        // Log the final FormData for debugging
+        console.log('FormData contents:');
+        for (const pair of formData.entries()) {
+            console.log(pair[0], pair[1]);
+        }
 
-      const fileId = parseInt(response.data.split('FileID: ')[1]);
-      return fileId;
+        const response = await axios.post(`${REST_API_BASE}/upload`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: (progressEvent) => {
+                if (progressEvent.total) {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    onProgress?.(percentCompleted);
+                }
+            }
+        });
+
+        if (!response.data) {
+            throw new Error('No response data received');
+        }
+
+        const fileId = typeof response.data === 'object' ? response.data.id : parseInt(response.data.split('FileID: ')[1]);
+        return fileId;
     } catch (error) {
-      handleApiError(error, 'File upload failed');
-      throw error;
+        console.error('Upload error details:', {
+            error: error,
+            response: error.response?.data,
+            status: error.response?.status,
+            tags: tags // Log tags in error case too
+        });
+
+        throw error;
     }
-  },
+},
 
   // Add a new method to search files by tag
   async getFilesByTag(tag: string): Promise<FileMetadata[]> {
