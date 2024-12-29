@@ -3,6 +3,7 @@ package com.anthonydaniel.fileflow.filemanagement.service;
 import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.minio.messages.Item;
 import org.slf4j.Logger;
@@ -74,52 +75,88 @@ public class FileService {
 
     public String saveFile(MultipartFile file, String userId, List<String> tags) {
         try {
-            // converting tags to a GraphQL-compatible string representation (["tag1", "tag2"])
-            String tagsString = tags != null ? tags.stream()
-                    .map(tag -> "\"" + tag + "\"")
-                    .reduce((tag1, tag2) -> tag1 + ", " + tag2)
-                    .map(result -> "[" + result + "]")
-                    .orElse("[]") : "[]";
+            logger.info("1. Starting file upload process for file: {}, userId: {}, tags: {}",
+                    file.getOriginalFilename(), userId, tags);
 
-            // saving metadata to get the file ID
+            List<String> safeTags = tags != null ? tags : Collections.emptyList();
+            logger.info("2. Processed tags: {}", safeTags);
+
             String metadataMutation = """
-            mutation {
-                saveMetadata(fileName: "%s", fileSize: %d, owner: "%s", tags: %s) {
-                    id
-                    fileName
-                }
+        mutation SaveMetadata($fileName: String!, $fileSize: Int!, $owner: String!, $tags: [String!]) {
+            saveMetadata(
+                fileName: $fileName
+                fileSize: $fileSize
+                owner: $owner
+                tags: $tags
+            ) {
+                id
+                fileName
+                tags
             }
-        """.formatted(file.getOriginalFilename(), file.getSize(), userId, tagsString);
+        }""";
+
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("fileName", file.getOriginalFilename());
+            variables.put("fileSize", (int) file.getSize());
+            variables.put("owner", userId);
+            variables.put("tags", safeTags);
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("query", metadataMutation);
+            requestBody.put("variables", variables);
 
-            Map<String, Object> response = metadataRestTemplate.postForObject(
+            logger.info("3. Sending GraphQL request to URL: {} with body: {}", metadataServiceUrl, requestBody);
+
+            ResponseEntity<Map<String, Object>> response = metadataRestTemplate.exchange(
                     metadataServiceUrl + "/graphql",
-                    requestBody,
-                    Map.class
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
-            // extract file ID from response
-            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            logger.info("4. Received response from metadata service: {}", response.getBody());
+
+            if (response.getBody() == null) {
+                throw new RuntimeException("Received null response from metadata service");
+            }
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            if (data == null) {
+                List<Map<String, Object>> errors = (List<Map<String, Object>>) response.getBody().get("errors");
+                if (errors != null && !errors.isEmpty()) {
+                    String errorMessage = (String) errors.get(0).get("message");
+                    throw new RuntimeException("GraphQL error: " + errorMessage);
+                }
+                throw new RuntimeException("No data received from metadata service");
+            }
+
             Map<String, Object> savedMetadata = (Map<String, Object>) data.get("saveMetadata");
-            Integer fileId = (Integer) savedMetadata.get("id");
+            if (savedMetadata == null) {
+                throw new RuntimeException("No saveMetadata field in response");
+            }
 
-            // add fileId to the object name
+            Integer fileId = ((Number) savedMetadata.get("id")).intValue();
+            logger.info("5. Got fileId from metadata service: {}", fileId);
+
+            // Save file to MinIO
             String objectName = String.format("%s/%d_%s", userId, fileId, file.getOriginalFilename());
-            InputStream inputStream = file.getInputStream();
+            logger.info("6. Saving file to MinIO with objectName: {}", objectName);
 
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectName)
-                    .stream(inputStream, file.getSize(), -1)
-                    .contentType(file.getContentType())
-                    .userMetadata(Map.of("fileId", fileId.toString()))
-                    .build());
+            try (InputStream inputStream = file.getInputStream()) {
+                minioClient.putObject(PutObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .stream(inputStream, file.getSize(), -1)
+                        .contentType(file.getContentType())
+                        .userMetadata(Map.of("fileId", fileId.toString()))
+                        .build());
+            }
+            logger.info("7. File saved to MinIO successfully");
 
             return "File uploaded successfully. FileID: " + fileId;
         } catch (Exception e) {
-            throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
+            logger.error("Error uploading file: ", e);
+            throw new RuntimeException("Error uploading file: " + e.getMessage(), e);
         }
     }
 

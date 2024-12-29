@@ -4,7 +4,7 @@ type FileMetadata {
     fileSize: Int!
     owner: String
     uploadDate: String!
-    tags: [String]!
+    tags: [String!]!
 }
 
 type FileShare {
@@ -29,7 +29,7 @@ type Query {
 }
 
 type Mutation {
-    saveMetadata(fileName: String!, fileSize: Int!, owner: String!, tags: [String]!): FileMetadata
+    saveMetadata(fileName: String!, fileSize: Int!, owner: String!, tags: [String!]): FileMetadata
     deleteMetadata(id: Int!): Boolean
 
     shareFile(fileId: Int!, sharedWithUsername: String!, sharedByUsername: String!): Boolean!

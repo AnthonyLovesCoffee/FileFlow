@@ -4,6 +4,7 @@ export interface FileMetadata {
     fileSize: number;
     owner: string;
     uploadDate: string;
+    tags: string[];
   }
 
   export interface DownloadProgressCallback {

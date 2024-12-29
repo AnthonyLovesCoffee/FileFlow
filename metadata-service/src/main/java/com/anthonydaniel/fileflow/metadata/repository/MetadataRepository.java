@@ -13,6 +13,6 @@ public interface MetadataRepository extends JpaRepository<FileMetadata, Long> {
     List<FileMetadata> findByFileNameContaining(String fileName);
     List<FileMetadata> findByOwner(String owner);
 
-    @Query("SELECT f FROM FileMetadata f JOIN f.tags t WHERE t = :tag")
+    @Query("SELECT DISTINCT f FROM FileMetadata f JOIN f.tags t WHERE t = :tag")
     List<FileMetadata> findByTag(@Param("tag") String tag);
 }

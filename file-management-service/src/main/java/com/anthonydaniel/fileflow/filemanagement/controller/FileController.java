@@ -18,9 +18,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/files")
@@ -44,20 +47,30 @@ public class FileController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file,
-                                             @RequestParam(value="tags", required=false) List<String> tags,
-                                             @RequestHeader("Authorization") String authHeader) {
-        log.info("File: {}, Tags: {}, AuthHeader: {}", file.getOriginalFilename(), tags, authHeader);
+    public ResponseEntity<String> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value="tags[]", required=false) List<String> tags,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        log.info("Request received: file={}, size={}, contentType={}",
+                file.getOriginalFilename(),
+                file.getSize(),
+                file.getContentType());
+        log.info("Tags received: {}", tags);
+
 
         try {
-            // validate token
             TokenValidationResponse validation = authenticationService.validateToken(authHeader);
             if (!validation.isValid()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(validation.getMessage());
             }
 
-            String response = fileService.saveFile(file, validation.getUsername(), tags);
+            // If tags is null, pass an empty list
+            List<String> processedTags = tags != null ? tags : Collections.emptyList();
+            log.info("Processed tags: {}", processedTags);
+
+            String response = fileService.saveFile(file, validation.getUsername(), processedTags);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error uploading file: {}", e.getMessage(), e);

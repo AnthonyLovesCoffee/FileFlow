@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class MetadataService {
@@ -28,17 +29,29 @@ public class MetadataService {
     }
 
     public FileMetadata saveMetadata(String fileName, Integer fileSize, String owner, List<String> tags) {
-        System.out.println("Service received: fileName=" + fileName + ", fileSize=" + fileSize + ", owner=" + owner);
+        System.out.println("Service received: fileName=" + fileName +
+                ", fileSize=" + fileSize +
+                ", owner=" + owner +
+                ", tags=" + tags); // debug
+
         FileMetadata metadata = new FileMetadata();
         metadata.setFileName(fileName);
         metadata.setFileSize(fileSize);
         metadata.setOwner(owner);
         metadata.setUploadDate(LocalDateTime.now());
-        metadata.setTags(new HashSet<>(tags));
+        if (tags != null && !tags.isEmpty()) {
+            Set<String> tagSet = new HashSet<>(tags);
+            metadata.setTags(tagSet);
+            System.out.println("Adding tags to metadata: " + tagSet);
+        } else {
+            metadata.setTags(new HashSet<>()); // empty set if no tags
+            System.out.println("No tags provided, initializing empty set");
+        }
 
         try {
             FileMetadata savedMetadata = repository.save(metadata);
-            System.out.println("Repository saved metadata: " + savedMetadata);
+            System.out.println("Saved metadata with ID: " + savedMetadata.getId());
+            System.out.println("Saved metadata tags: " + savedMetadata.getTags());
             return savedMetadata;
         } catch (Exception e) {
             System.err.println("Error saving metadata: " + e.getMessage());

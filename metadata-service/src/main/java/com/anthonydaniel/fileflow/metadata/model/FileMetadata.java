@@ -31,10 +31,12 @@ public class FileMetadata {
     @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<FileShare> shares = new HashSet<>();
 
-    @ElementCollection
-    @CollectionTable(name = "file_tags", joinColumns = @JoinColumn(name = "id"))
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "file_tags",
+            joinColumns = @JoinColumn(name = "file_id")
+    )
     @Column(name = "tag")
-
     private Set<String> tags = new HashSet<>();
 
     public Set<FileShare> getShares() {
@@ -88,4 +90,12 @@ public class FileMetadata {
     public Set<String> getTags() {return tags;}
 
     public void setTags(Set<String> tags) {this.tags = tags;}
+
+    // method to add single tag
+    public void addTag(String tag) {
+        if (this.tags == null) {
+            this.tags = new HashSet<>();
+        }
+        this.tags.add(tag);
+    }
 }

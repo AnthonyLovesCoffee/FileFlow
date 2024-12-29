@@ -39,14 +39,17 @@ axios.interceptors.response.use(
 );
 
 export const fileService = {
-  async uploadFile(file: File, onProgress?: (progress: number) => void): Promise<number> {
-    const userId = localStorage.getItem('user');
-    if (!userId) {
-      throw new Error('User not authenticated');
-    }
+  async uploadFile(
+      file: File,
+      tags: string[],
+      onProgress?: (progress: number) => void
+  ): Promise<number> {
 
     const formData = new FormData();
     formData.append('file', file);
+    tags.forEach(tag => {
+      formData.append('tags[]', tag);
+    });
 
     try {
       const response = await axios.post(`${REST_API_BASE}/upload`, formData, {
@@ -57,17 +60,58 @@ export const fileService = {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             onProgress?.(percentCompleted);
-            }
-         },
-       });
-    // get fileId from response
-         const fileId = parseInt(response.data.split('FileID: ')[1]);
-         return fileId;
-       } catch (error) {
-         handleApiError(error, 'File upload failed');
-         throw error;
-       }
-     },
+          }
+        },
+      });
+
+      const fileId = parseInt(response.data.split('FileID: ')[1]);
+      return fileId;
+    } catch (error) {
+      handleApiError(error, 'File upload failed');
+      throw error;
+    }
+  },
+
+  // Add a new method to search files by tag
+  async getFilesByTag(tag: string): Promise<FileMetadata[]> {
+    const query = {
+      query: `
+        query GetFilesByTag($tag: String!) {
+          getFilesByTag(tag: $tag) {
+            id
+            fileName
+            fileSize
+            owner
+            uploadDate
+            tags
+          }
+        }
+      `,
+      variables: { tag }
+    };
+
+    try {
+      const response = await fetch(GRAPHQL_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query),
+      });
+
+      if (!response.ok) {
+        throw new Error('Query failed');
+      }
+
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+
+      return result.data.getFilesByTag || [];
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch files by tag');
+      throw error;
+    }
+  },
 
   // download file
    async downloadFile(fileId: number, onProgress?: DownloadProgressCallback): Promise<Blob> {

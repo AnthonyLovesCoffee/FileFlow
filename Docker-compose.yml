@@ -130,8 +130,6 @@ services:
       - minio_data2:/data2
     networks:
       - fileflow-network
-    depends_on:
-      - minio2
 
   minio2:
     image: minio/minio
