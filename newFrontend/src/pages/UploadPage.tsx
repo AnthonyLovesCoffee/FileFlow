@@ -39,15 +39,15 @@ export function UploadPage() {
       setIsUploading(true);
       setUploadProgress(0);
 
-      // Just pass file and tags directly to the uploadFile service
+      // pass file and tags directly to the uploadFile service
       const fileId = await fileService.uploadFile(
         file,
-        tags, // Pass the tags array directly
+        tags,
         (progress) => {
           setUploadProgress(progress);
         }
       );
-
+      console.log('Tags being uploaded:', tags);
       toast.success(`File uploaded successfully! (ID: ${fileId})`);
       setFile(null);
       setTags([]);
@@ -63,9 +63,10 @@ export function UploadPage() {
     }
   };
 
-  // Add debug logging to see what's happening with tags
+  // debug logging to see what's happening with tags
   console.log('Current tags:', tags);
 
+  // @ts-ignore
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">

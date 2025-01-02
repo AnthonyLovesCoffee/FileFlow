@@ -138,9 +138,7 @@ public class FileService {
             Integer fileId = ((Number) savedMetadata.get("id")).intValue();
             logger.info("5. Got fileId from metadata service: {}", fileId);
 
-            // Save file to MinIO
             String objectName = String.format("%s/%d_%s", userId, fileId, file.getOriginalFilename());
-            logger.info("6. Saving file to MinIO with objectName: {}", objectName);
 
             try (InputStream inputStream = file.getInputStream()) {
                 minioClient.putObject(PutObjectArgs.builder()
@@ -151,7 +149,6 @@ public class FileService {
                         .userMetadata(Map.of("fileId", fileId.toString()))
                         .build());
             }
-            logger.info("7. File saved to MinIO successfully");
 
             return "File uploaded successfully. FileID: " + fileId;
         } catch (Exception e) {

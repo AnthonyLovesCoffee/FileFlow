@@ -48,38 +48,44 @@ async uploadFile(
         throw new Error('No file provided');
     }
 
+    // debug the tags being sent
+    console.log('Sending tags:', tags);
+
     const formData = new FormData();
     formData.append('file', file);
 
-    // Log the tags being sent
-    console.log('Sending tags:', tags);
-
-    // Append tags as array elements
-    tags.forEach((tag, index) => {
-        formData.append(`tags[${index}]`, tag);
+    // add tags as array elements
+    tags.forEach(tag => {
+      formData.append('tags[]', tag);
     });
 
+    // debug
+    console.log('Sending FormData:');
+    console.log('File:', file.name);
+    console.log('Tags:', tags);
     try {
-        // Log the final FormData for debugging
         console.log('FormData contents:');
         for (const pair of formData.entries()) {
             console.log(pair[0], pair[1]);
         }
 
-        const response = await axios.post(`${REST_API_BASE}/upload`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress: (progressEvent) => {
-                if (progressEvent.total) {
-                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    onProgress?.(percentCompleted);
-                }
-            }
-        });
+      const response = await axios.post(`${REST_API_BASE}/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+            );
+            onProgress?.(percentCompleted);
+          }
+        },
+      });
 
         if (!response.data) {
-            throw new Error('No response data received');
+          console.log("ERROR: RESPONSE DATA EMPTY")
+          throw new Error('No response data received');
         }
 
         const fileId = typeof response.data === 'object' ? response.data.id : parseInt(response.data.split('FileID: ')[1]);
@@ -96,7 +102,7 @@ async uploadFile(
     }
 },
 
-  // Add a new method to search files by tag
+  // method to search files by tag
   async getFilesByTag(tag: string): Promise<FileMetadata[]> {
     const query = {
       query: `
