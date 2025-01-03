@@ -3,6 +3,7 @@ package com.anthonydaniel.fileflow.filemanagement.service;
 import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.minio.messages.Item;
 import org.slf4j.Logger;
@@ -74,52 +75,98 @@ public class FileService {
 
     public String saveFile(MultipartFile file, String userId, List<String> tags) {
         try {
-            // converting tags to a GraphQL-compatible string representation (["tag1", "tag2"])
-            String tagsString = tags != null ? tags.stream()
-                    .map(tag -> "\"" + tag + "\"")
-                    .reduce((tag1, tag2) -> tag1 + ", " + tag2)
-                    .map(result -> "[" + result + "]")
-                    .orElse("[]") : "[]";
+            logger.info("1. Starting file upload process for file: {}, userId: {}, tags: {}",
+                    file.getOriginalFilename(), userId, tags);
 
-            // saving metadata to get the file ID
-            String metadataMutation = """
-            mutation {
-                saveMetadata(fileName: "%s", fileSize: %d, owner: "%s", tags: %s) {
-                    id
-                    fileName
-                }
+            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder()
+                    .bucket(bucketName)
+                    .build());
+
+            if (!bucketExists) {
+                logger.error("MinIO bucket '{}' not found", bucketName);
+                throw new RuntimeException("Storage service is not properly initialized");
             }
-        """.formatted(file.getOriginalFilename(), file.getSize(), userId, tagsString);
+
+            List<String> safeTags = tags != null ? tags : Collections.emptyList();
+            logger.info("2. Processed tags: {}", safeTags);
+
+            String metadataMutation = """
+        mutation SaveMetadata($fileName: String!, $fileSize: Int!, $owner: String!, $tags: [String!]) {
+            saveMetadata(
+                fileName: $fileName
+                fileSize: $fileSize
+                owner: $owner
+                tags: $tags
+            ) {
+                id
+                fileName
+                tags
+            }
+        }""";
+
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("fileName", file.getOriginalFilename());
+            variables.put("fileSize", (int) file.getSize());
+            variables.put("owner", userId);
+            variables.put("tags", safeTags);
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("query", metadataMutation);
+            requestBody.put("variables", variables);
 
-            Map<String, Object> response = metadataRestTemplate.postForObject(
+            logger.info("3. Sending GraphQL request to URL: {} with body: {}", metadataServiceUrl, requestBody);
+
+            ResponseEntity<Map<String, Object>> response = metadataRestTemplate.exchange(
                     metadataServiceUrl + "/graphql",
-                    requestBody,
-                    Map.class
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
-            // extract file ID from response
-            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            logger.info("4. Received response from metadata service: {}", response.getBody());
+
+            if (response.getBody() == null) {
+                throw new RuntimeException("Received null response from metadata service");
+            }
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            if (data == null) {
+                List<Map<String, Object>> errors = (List<Map<String, Object>>) response.getBody().get("errors");
+                if (errors != null && !errors.isEmpty()) {
+                    String errorMessage = (String) errors.get(0).get("message");
+                    throw new RuntimeException("GraphQL error: " + errorMessage);
+                }
+                throw new RuntimeException("No data received from metadata service");
+            }
+
             Map<String, Object> savedMetadata = (Map<String, Object>) data.get("saveMetadata");
-            Integer fileId = (Integer) savedMetadata.get("id");
+            if (savedMetadata == null) {
+                throw new RuntimeException("No saveMetadata field in response");
+            }
 
-            // add fileId to the object name
+            Integer fileId = ((Number) savedMetadata.get("id")).intValue();
+            logger.info("5. Got fileId from metadata service: {}", fileId);
+
             String objectName = String.format("%s/%d_%s", userId, fileId, file.getOriginalFilename());
-            InputStream inputStream = file.getInputStream();
 
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectName)
-                    .stream(inputStream, file.getSize(), -1)
-                    .contentType(file.getContentType())
-                    .userMetadata(Map.of("fileId", fileId.toString()))
-                    .build());
+            try (InputStream inputStream = file.getInputStream()) {
+                minioClient.putObject(PutObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .stream(inputStream, file.getSize(), -1)
+                        .contentType(file.getContentType())
+                        .userMetadata(Map.of("fileId", fileId.toString()))
+                        .build());
+            }
 
             return "File uploaded successfully. FileID: " + fileId;
         } catch (Exception e) {
-            throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
+            logger.error("Error uploading file: {} - {}", e.getClass().getName(), e.getMessage(), e);
+            if (e.getMessage().contains("Connection refused") ||
+                    e.getMessage().contains("ConnectException")) {
+                throw new RuntimeException("Storage service is currently unavailable", e);
+            }
+            throw new RuntimeException("Error uploading file: " + e.getMessage(), e);
         }
     }
 
@@ -238,6 +285,88 @@ public class FileService {
         } catch (Exception e) {
             logger.error("Error checking file access permission: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+    public boolean deleteFile(Integer fileId, String requestingUserId, String authHeader) {
+        try {
+            logger.info("Starting delete process for fileId: {}, requestingUserId: {}", fileId, requestingUserId);
+
+            // check user has permission to delete
+            if (!checkFileAccessPermission(fileId, requestingUserId, authHeader)) {
+                logger.warn("User {} does not have permission to delete file {}", requestingUserId, fileId);
+                throw new RuntimeException("You don't have permission to delete this file");
+            }
+
+            // get metadata
+            String query = """
+            query {
+                getMetadataById(id: %d) {
+                    fileName
+                    owner
+                }
+            }
+        """.formatted(fileId);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("query", query);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", authHeader);
+
+            ResponseEntity<Map<String, Object>> response = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            Map<String, Object> metadata = (Map<String, Object>) data.get("getMetadataById");
+            String fileName = (String) metadata.get("fileName");
+            String owner = (String) metadata.get("owner");
+
+            // make object name and delete from MinIO
+            String objectName = String.format("%s/%d_%s", owner, fileId, fileName);
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectName)
+                    .build());
+
+            logger.info("Successfully deleted file from MinIO storage: {}", objectName);
+
+            // delete metadata
+            String deleteMutation = """
+            mutation {
+                deleteMetadata(id: %d)
+            }
+        """.formatted(fileId);
+
+            requestBody = new HashMap<>();
+            requestBody.put("query", deleteMutation);
+
+            response = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            data = (Map<String, Object>) response.getBody().get("data");
+            Boolean deleted = (Boolean) data.get("deleteMetadata");
+
+            if (Boolean.TRUE.equals(deleted)) {
+                logger.info("Successfully deleted metadata for fileId: {}", fileId);
+                return true;
+            } else {
+                logger.error("Failed to delete metadata for fileId: {}", fileId);
+                throw new RuntimeException("Failed to delete file metadata");
+            }
+
+        } catch (Exception e) {
+            logger.error("Error deleting file: {}", e.getMessage(), e);
+            throw new RuntimeException("Error deleting file: " + e.getMessage(), e);
         }
     }
 

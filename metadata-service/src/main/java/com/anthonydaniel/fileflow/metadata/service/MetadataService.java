@@ -1,19 +1,25 @@
 package com.anthonydaniel.fileflow.metadata.service;
 
 import com.anthonydaniel.fileflow.metadata.model.FileMetadata;
+import com.anthonydaniel.fileflow.metadata.repository.FileShareRepository;
 import com.anthonydaniel.fileflow.metadata.repository.MetadataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class MetadataService {
 
     @Autowired
     private MetadataRepository repository;
+
+    @Autowired
+    private FileShareRepository fileShareRepository;
 
     public List<FileMetadata> getAllMetadata() {
         return repository.findAll();
@@ -28,17 +34,29 @@ public class MetadataService {
     }
 
     public FileMetadata saveMetadata(String fileName, Integer fileSize, String owner, List<String> tags) {
-        System.out.println("Service received: fileName=" + fileName + ", fileSize=" + fileSize + ", owner=" + owner);
+        System.out.println("Service received: fileName=" + fileName +
+                ", fileSize=" + fileSize +
+                ", owner=" + owner +
+                ", tags=" + tags); // debug
+
         FileMetadata metadata = new FileMetadata();
         metadata.setFileName(fileName);
         metadata.setFileSize(fileSize);
         metadata.setOwner(owner);
         metadata.setUploadDate(LocalDateTime.now());
-        metadata.setTags(new HashSet<>(tags));
+        if (tags != null && !tags.isEmpty()) {
+            Set<String> tagSet = new HashSet<>(tags);
+            metadata.setTags(tagSet);
+            System.out.println("Adding tags to metadata: " + tagSet);
+        } else {
+            metadata.setTags(new HashSet<>()); // empty set if no tags
+            System.out.println("No tags provided, initializing empty set");
+        }
 
         try {
             FileMetadata savedMetadata = repository.save(metadata);
-            System.out.println("Repository saved metadata: " + savedMetadata);
+            System.out.println("Saved metadata with ID: " + savedMetadata.getId());
+            System.out.println("Saved metadata tags: " + savedMetadata.getTags());
             return savedMetadata;
         } catch (Exception e) {
             System.err.println("Error saving metadata: " + e.getMessage());
@@ -47,8 +65,12 @@ public class MetadataService {
         }
     }
 
+    @Transactional
     public boolean deleteMetadata(Integer id) {
         if (repository.existsById(Long.valueOf(id))) {
+            //delete any shares of this file
+            fileShareRepository.deleteByFileId(id);
+            // delete the file metadata
             repository.deleteById(Long.valueOf(id));
             return true;
         }

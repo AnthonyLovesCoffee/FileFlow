@@ -44,7 +44,7 @@ export function Navbar() {
                   className="flex items-center space-x-1 text-gray-600 hover:text-gray-900"
                 >
                   <FileSearch size={20} />
-                  <span>Metadata</span>
+                   <span>Search Tags</span>
                 </Link>
                 <button
                   onClick={logout}

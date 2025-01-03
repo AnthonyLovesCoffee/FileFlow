@@ -124,14 +124,12 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: server --console-address ":9001" http://minio1/data1 http://minio1/data2 http://minio2/data1 http://minio2/data2
+    command: server --console-address ":9001" http://minio{1...2}/data{1...2}
     volumes:
       - minio_data1:/data1
       - minio_data2:/data2
     networks:
       - fileflow-network
-    depends_on:
-      - minio2
 
   minio2:
     image: minio/minio
@@ -142,7 +140,7 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: server --console-address ":9001" http://minio1/data1 http://minio1/data2 http://minio2/data1 http://minio2/data2
+    command: server --console-address ":9001" http://minio{1...2}/data{1...2}
     volumes:
       - minio_data3:/data1
       - minio_data4:/data2
@@ -160,10 +158,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      interval: 1s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
 
   api-gateway:
     build: ./api-gateway
