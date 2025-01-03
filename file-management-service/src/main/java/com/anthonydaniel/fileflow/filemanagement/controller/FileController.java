@@ -58,7 +58,6 @@ public class FileController {
                 file.getContentType());
         log.info("Tags received: {}", tags);
 
-
         try {
             TokenValidationResponse validation = authenticationService.validateToken(authHeader);
             if (!validation.isValid()) {
@@ -74,6 +73,13 @@ public class FileController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error uploading file: {}", e.getMessage(), e);
+
+            if (e.getMessage().contains("Storage service is currently unavailable") ||
+                    e.getMessage().contains("Storage service is not properly initialized")) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body("Storage service is temporarily unavailable. Please try again later.");
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error uploading file: " + e.getMessage());
         }
@@ -221,6 +227,58 @@ public class FileController {
             log.error("Error querying files by tag: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error querying files: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete/{fileId}")
+    public ResponseEntity<?> deleteFile(
+            @PathVariable Integer fileId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        log.info("Received delete request for fileId: {}", fileId);
+
+        try {
+            // check auth header
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                log.warn("Missing or invalid Authorization header");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Authorization header is required");
+            }
+            log.info("Authorization header is present");
+
+            // validate with auth-service
+            TokenValidationResponse validation = authenticationService.validateToken(authHeader);
+            if (!validation.isValid()) {
+                log.info("Token validation failed: {}", validation.getMessage());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(validation.getMessage());
+            }
+            log.info("Token successfully validated for user: {}", validation.getUsername());
+
+            try {
+                boolean deleted = fileService.deleteFile(fileId, validation.getUsername(), authHeader);
+                if (deleted) {
+                    log.info("Successfully deleted file: {} for user: {}", fileId, validation.getUsername());
+                    return ResponseEntity.ok("File deleted successfully");
+                } else {
+                    log.warn("Failed to delete file: {} for user: {}", fileId, validation.getUsername());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body("Failed to delete file");
+                }
+            } catch (RuntimeException e) {
+                if (e.getMessage().contains("permission")) {
+                    log.warn("Permission denied for user {} to delete file {}", validation.getUsername(), fileId);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body("You don't have permission to delete this file");
+                }
+                log.error("Error deleting file: {} for user: {}. Error: {}",
+                        fileId, validation.getUsername(), e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("Error deleting file: " + e.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Unexpected error processing delete request: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error processing request: " + e.getMessage());
         }
     }
 }

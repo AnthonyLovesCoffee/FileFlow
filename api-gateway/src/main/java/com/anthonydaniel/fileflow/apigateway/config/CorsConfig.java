@@ -18,8 +18,6 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        //TODO
-        //below
         corsConfig.setAllowedOrigins(Arrays.asList(allowedOrigin)); //accept origin from frontend
         corsConfig.setMaxAge(3600L);
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

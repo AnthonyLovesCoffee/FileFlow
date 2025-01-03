@@ -1,9 +1,11 @@
 package com.anthonydaniel.fileflow.metadata.service;
 
 import com.anthonydaniel.fileflow.metadata.model.FileMetadata;
+import com.anthonydaniel.fileflow.metadata.repository.FileShareRepository;
 import com.anthonydaniel.fileflow.metadata.repository.MetadataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -15,6 +17,9 @@ public class MetadataService {
 
     @Autowired
     private MetadataRepository repository;
+
+    @Autowired
+    private FileShareRepository fileShareRepository;
 
     public List<FileMetadata> getAllMetadata() {
         return repository.findAll();
@@ -60,8 +65,12 @@ public class MetadataService {
         }
     }
 
+    @Transactional
     public boolean deleteMetadata(Integer id) {
         if (repository.existsById(Long.valueOf(id))) {
+            //delete any shares of this file
+            fileShareRepository.deleteByFileId(id);
+            // delete the file metadata
             repository.deleteById(Long.valueOf(id));
             return true;
         }

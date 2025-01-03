@@ -78,6 +78,15 @@ public class FileService {
             logger.info("1. Starting file upload process for file: {}, userId: {}, tags: {}",
                     file.getOriginalFilename(), userId, tags);
 
+            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder()
+                    .bucket(bucketName)
+                    .build());
+
+            if (!bucketExists) {
+                logger.error("MinIO bucket '{}' not found", bucketName);
+                throw new RuntimeException("Storage service is not properly initialized");
+            }
+
             List<String> safeTags = tags != null ? tags : Collections.emptyList();
             logger.info("2. Processed tags: {}", safeTags);
 
@@ -152,7 +161,11 @@ public class FileService {
 
             return "File uploaded successfully. FileID: " + fileId;
         } catch (Exception e) {
-            logger.error("Error uploading file: ", e);
+            logger.error("Error uploading file: {} - {}", e.getClass().getName(), e.getMessage(), e);
+            if (e.getMessage().contains("Connection refused") ||
+                    e.getMessage().contains("ConnectException")) {
+                throw new RuntimeException("Storage service is currently unavailable", e);
+            }
             throw new RuntimeException("Error uploading file: " + e.getMessage(), e);
         }
     }
@@ -272,6 +285,88 @@ public class FileService {
         } catch (Exception e) {
             logger.error("Error checking file access permission: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+    public boolean deleteFile(Integer fileId, String requestingUserId, String authHeader) {
+        try {
+            logger.info("Starting delete process for fileId: {}, requestingUserId: {}", fileId, requestingUserId);
+
+            // check user has permission to delete
+            if (!checkFileAccessPermission(fileId, requestingUserId, authHeader)) {
+                logger.warn("User {} does not have permission to delete file {}", requestingUserId, fileId);
+                throw new RuntimeException("You don't have permission to delete this file");
+            }
+
+            // get metadata
+            String query = """
+            query {
+                getMetadataById(id: %d) {
+                    fileName
+                    owner
+                }
+            }
+        """.formatted(fileId);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("query", query);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", authHeader);
+
+            ResponseEntity<Map<String, Object>> response = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
+            Map<String, Object> metadata = (Map<String, Object>) data.get("getMetadataById");
+            String fileName = (String) metadata.get("fileName");
+            String owner = (String) metadata.get("owner");
+
+            // make object name and delete from MinIO
+            String objectName = String.format("%s/%d_%s", owner, fileId, fileName);
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectName)
+                    .build());
+
+            logger.info("Successfully deleted file from MinIO storage: {}", objectName);
+
+            // delete metadata
+            String deleteMutation = """
+            mutation {
+                deleteMetadata(id: %d)
+            }
+        """.formatted(fileId);
+
+            requestBody = new HashMap<>();
+            requestBody.put("query", deleteMutation);
+
+            response = metadataRestTemplate.exchange(
+                    metadataServiceUrl + "/graphql",
+                    HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            data = (Map<String, Object>) response.getBody().get("data");
+            Boolean deleted = (Boolean) data.get("deleteMetadata");
+
+            if (Boolean.TRUE.equals(deleted)) {
+                logger.info("Successfully deleted metadata for fileId: {}", fileId);
+                return true;
+            } else {
+                logger.error("Failed to delete metadata for fileId: {}", fileId);
+                throw new RuntimeException("Failed to delete file metadata");
+            }
+
+        } catch (Exception e) {
+            logger.error("Error deleting file: {}", e.getMessage(), e);
+            throw new RuntimeException("Error deleting file: " + e.getMessage(), e);
         }
     }
 

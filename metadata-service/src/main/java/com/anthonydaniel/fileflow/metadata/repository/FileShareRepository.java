@@ -20,7 +20,7 @@ public interface FileShareRepository extends JpaRepository<FileShare, Long> {
 
     List<FileShare> findBySharedDateBetween(LocalDateTime startDate, LocalDateTime endDate);
     List<FileShare> findBySharedWithUsernameAndSharedDateAfter(String username, LocalDateTime date);
-
+    void deleteByFileId(Integer fileId);
 
     @Query("SELECT fs FROM FileShare fs WHERE fs.sharedWithUsername = :username")
     List<FileShare> findFileSharesBySharedWithUsername(@Param("username") String username);

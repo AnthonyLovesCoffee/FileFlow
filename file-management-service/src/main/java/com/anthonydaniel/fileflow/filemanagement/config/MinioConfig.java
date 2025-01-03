@@ -1,7 +1,9 @@
 package com.anthonydaniel.fileflow.filemanagement.config;
 
+import io.minio.BucketExistsArgs;
+import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
-import jakarta.annotation.PostConstruct;
+import io.minio.errors.ErrorResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,33 +14,56 @@ import org.springframework.context.annotation.Configuration;
 public class MinioConfig {
     private static final Logger logger = LoggerFactory.getLogger(MinioConfig.class);
 
-
     @Value("${minio.endpoint}")
     private String endpoint;
 
-    @Value("${minio.access-key}")
+    @Value("${minio.accessKey}")
     private String accessKey;
 
-    @Value("${minio.secret-key}")
+    @Value("${minio.secretKey}")
     private String secretKey;
+
+    @Value("${minio.bucket:fileflow}")
+    private String bucketName;
 
     @Bean
     public MinioClient minioClient() {
         try {
-            logger.info("Creating MinIO client with endpoint: {}, accessKey: {}", endpoint, accessKey);
-            MinioClient client = MinioClient.builder()
+            logger.info("Initializing MinIO client with endpoint: {}", endpoint);
+            MinioClient minioClient = MinioClient.builder()
                     .endpoint(endpoint)
                     .credentials(accessKey, secretKey)
                     .build();
 
-            // test connection
-            client.listBuckets();
-            logger.info("Successfully connected to MinIO");
+            // verify connection and bucket
+            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder()
+                    .bucket(bucketName)
+                    .build());
 
-            return client;
+            if (!bucketExists) {
+                try {
+                    logger.info("Bucket '{}' does not exist, creating it...", bucketName);
+                    minioClient.makeBucket(MakeBucketArgs.builder()
+                            .bucket(bucketName)
+                            .build());
+                    logger.info("Bucket '{}' created successfully", bucketName);
+                } catch (ErrorResponseException e) {
+                    // check if the error is because the bucket already exists
+                    if (e.getMessage().contains("you already own it")) {
+                        logger.info("Bucket '{}' already exists and is owned by us", bucketName);
+                    } else {
+                        // if different error, rethrow it
+                        throw e;
+                    }
+                }
+            } else {
+                logger.info("Connected to MinIO successfully, bucket '{}' exists", bucketName);
+            }
+
+            return minioClient;
         } catch (Exception e) {
-            logger.error("Failed to create MinIO client: {}", e.getMessage());
-            throw new RuntimeException("Could not create MinIO client", e);
+            logger.error("Failed to initialize MinIO client: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to initialize MinIO client", e);
         }
     }
 }

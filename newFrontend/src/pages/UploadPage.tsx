@@ -12,6 +12,7 @@ export function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [serviceError, setServiceError] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Separate handler for tag input
@@ -31,6 +32,15 @@ export function UploadPage() {
     setTags(prev => prev.filter(tag => tag !== tagToRemove));
   };
 
+  const resetForm = () => {
+    setFile(null);
+    setTags([]);
+    setUploadProgress(0);
+    // reset file input
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !user) return;
@@ -38,6 +48,7 @@ export function UploadPage() {
     try {
       setIsUploading(true);
       setUploadProgress(0);
+      setServiceError(null); // Reset any previous service errors
 
       // pass file and tags directly to the uploadFile service
       const fileId = await fileService.uploadFile(
@@ -49,27 +60,41 @@ export function UploadPage() {
       );
       console.log('Tags being uploaded:', tags);
       toast.success(`File uploaded successfully! (ID: ${fileId})`);
-      setFile(null);
-      setTags([]);
-      setUploadProgress(0);
+      resetForm();
 
-      // reset file input
-      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
     } catch (error) {
-      handleApiError(error, 'Error uploading file');
-    } finally {
-      setIsUploading(false);
-    }
+         if (error instanceof Error &&
+             (error.message.includes('status code 503') ||
+              error.message.includes('service is not available') ||
+              error.message.includes('currently unavailable'))) {
+           toast.error('Upload service is starting, please retry in a moment ...', {
+             duration: 5000,
+             icon: '⚠️'
+           });
+         } else {
+           handleApiError(error);
+         }
+       } finally {
+         setIsUploading(false);
+       }
   };
 
-  // debug logging to see what's happening with tags
-  console.log('Current tags:', tags);
-
-  // @ts-ignore
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">
+        {/* Service Error Message */}
+        {serviceError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+            <p className="text-red-700 mb-2">{serviceError}</p>
+            <button
+              onClick={() => setServiceError(null)}
+              className="text-sm bg-red-100 text-red-700 px-4 py-2 rounded-md hover:bg-red-200"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* File Selection Area */}
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-4">
           <input
@@ -141,7 +166,7 @@ export function UploadPage() {
 
           <button
             type="submit"
-            disabled={!file || isUploading}
+            disabled={!file || isUploading || !!serviceError}
             className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isUploading ? 'Uploading...' : 'Upload File'}

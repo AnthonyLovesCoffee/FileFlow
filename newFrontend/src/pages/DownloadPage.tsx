@@ -18,6 +18,7 @@ export function DownloadPage() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ id: number; fileName: string } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -40,15 +41,27 @@ export function DownloadPage() {
     if (!user) return;
     try {
       setLoading(true);
+      setServiceError(null); // Reset any previous service errors
       const data = await fileService.getFilesByOwner();
       setFiles(data);
       setFilteredFiles(data);
-    } catch (error) {
-      handleApiError(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+   } catch (error) {
+     if (error instanceof Error &&
+         (error.message.includes('status code 503') ||
+          error.message.includes('service is not available') ||
+          error.message.includes('currently unavailable'))) {
+       toast.error('File service is starting, please retry in a moment ...', {
+         duration: 5000,
+         icon: '⚠️'
+       });
+     } else {
+       handleApiError(error);
+     }
+   } finally {
+     setLoading(false);
+   }
+   };
+
 
   const handleShare = async (fileId: number) => {
     const file = files.find(f => f.id === fileId);
@@ -63,27 +76,49 @@ export function DownloadPage() {
 
     try {
       setIsUpdating(true);
+      setServiceError(null); // Reset any previous service errors
       await shareService.shareFile(selectedFile.id, username);
       toast.success(`File shared with ${username}`);
       setIsShareModalOpen(false);
       setSelectedFile(null);
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+   } catch (error) {
+     if (error instanceof Error &&
+         (error.message.includes('status code 503') ||
+          error.message.includes('service is not available') ||
+          error.message.includes('currently unavailable'))) {
+       toast.error('Share service is starting, please retry in a moment ...', {
+         duration: 5000,
+         icon: '⚠️'
+       });
+     } else {
+       handleApiError(error);
+       throw error;
+     }
+   } finally {
+     setIsUpdating(false);
+   }
+   };
 
   const handleDelete = async (fileId: number) => {
     if (!confirm('Are you sure you want to delete this file?')) return;
 
     try {
+      setServiceError(null); // Reset any previous service errors
       await fileService.deleteFile(fileId);
       setFiles(files => files.filter(f => f.id !== fileId));
-      toast.success('File deleted successfully');
+      //toast.success('File deleted successfully');
     } catch (error) {
-      handleApiError(error);
+       if (error instanceof Error &&
+               (error.message.includes('status code 503') ||
+                error.message.includes('service is not available') ||
+                error.message.includes('currently unavailable'))) {
+             toast.error('File service is starting, please retry in a moment ...', {
+               duration: 5000,
+               icon: '⚠️'
+             });
+      } else {
+        handleApiError(error);
+      }
     }
   };
 
@@ -91,6 +126,7 @@ export function DownloadPage() {
     try {
       setDownloadingFiles(prev => ({ ...prev, [fileId]: true }));
       setDownloadProgress(prev => ({ ...prev, [fileId]: 0 }));
+      setServiceError(null);
 
       const blob = await fileService.downloadFile(
         fileId,
@@ -110,7 +146,22 @@ export function DownloadPage() {
 
       toast.success('File downloaded successfully');
     } catch (error) {
-      handleApiError(error);
+      if (error instanceof Error &&
+          (error.message.includes('status code 503') ||
+           error.message.includes('service is not available') ||
+           error.message.includes('currently unavailable') ||
+           error.message.includes('Download failed'))) {
+        toast.error('File service is starting, please retry in a moment ...', {
+          duration: 5000,
+          icon: '⚠️'
+        });
+      } else {
+        const errorMessage = error instanceof Error
+          ? `Download failed: ${error.message}\n\n${error.stack}`
+          : 'Download failed with unknown error';
+        setServiceError(errorMessage);
+        handleApiError(error);
+      }
     } finally {
       setDownloadingFiles(prev => ({ ...prev, [fileId]: false }));
       setDownloadProgress(prev => ({ ...prev, [fileId]: 0 }));
@@ -133,6 +184,19 @@ export function DownloadPage() {
         </div>
         <h2 className="text-2xl font-bold text-center mb-6">Your Files</h2>
 
+        {/* Service Error Message */}
+        {serviceError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+            <p className="text-red-700 mb-2">{serviceError}</p>
+            <button
+              onClick={fetchUserFiles}
+              className="text-sm bg-red-100 text-red-700 px-4 py-2 rounded-md hover:bg-red-200"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <div className="mb-6">
           <div className="relative">
             <input
@@ -150,6 +214,11 @@ export function DownloadPage() {
           <div className="text-center text-gray-500 py-8">
             <FileIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <p>{searchTerm ? 'No matching files found' : 'No files found'}</p>
+            {serviceError && (
+              <p className="mt-2 text-sm text-red-600">
+                Service is currently unavailable
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
