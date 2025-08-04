@@ -1,8 +1,4 @@
 # **FileFlow**
-
-### **Group Name**
-**Dodgy Geezers**
-
 ---
 
 ### **How to Compile and Run**
